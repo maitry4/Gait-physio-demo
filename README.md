@@ -1,4 +1,4 @@
-# Gait Physiotherapy Demo (UI Prototype)
+# Gait Physiotherapy Demo (UI Prototype Mobile Responsive Only)
 
 ## Live Demo
 

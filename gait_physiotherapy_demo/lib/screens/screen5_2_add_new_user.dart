@@ -1,74 +1,115 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/user_provider.dart';
 
-class Screen52AddNewUser extends StatefulWidget {
+class Screen52AddNewUser extends ConsumerStatefulWidget {
   const Screen52AddNewUser({super.key});
 
   @override
-  State<Screen52AddNewUser> createState() => _Screen52AddNewUserState();
+  ConsumerState<Screen52AddNewUser> createState() => _Screen52AddNewUserState();
 }
 
-class _Screen52AddNewUserState extends State<Screen52AddNewUser> {
+class _Screen52AddNewUserState extends ConsumerState<Screen52AddNewUser> {
   final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
-  final _ageCtrl = TextEditingController();
-  final _idCtrl = TextEditingController();
-  DateTime? _selectedDate;
-  bool _submitted = false;
+  final _nameController = TextEditingController();
+  final _ageController = TextEditingController();
+  final _idController = TextEditingController();
+  final _dateController = TextEditingController();
+  bool _simulateDeviceFailure = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _dateController.text = DateTime.now().toIso8601String().substring(0, 10);
+  }
 
   @override
   void dispose() {
-    _nameCtrl.dispose(); _ageCtrl.dispose(); _idCtrl.dispose();
+    _nameController.dispose();
+    _ageController.dispose();
+    _idController.dispose();
+    _dateController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFFFF4E6A),
-            surface: Color(0xFF1A1D2E),
-          ),
+  void _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final name = _nameController.text.trim();
+    final age = int.parse(_ageController.text.trim());
+    final id = _idController.text.trim();
+
+    final success = await ref.read(userProvider.notifier).registerNewUser(
+          name: name,
+          age: age,
+          id: id,
+          simulateDeviceFailure: _simulateDeviceFailure,
+        );
+
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Successfully registered $name on wearable and local database!'),
+          backgroundColor: const Color(0xFF00C48C),
         ),
-        child: child!,
-      ),
-    );
-    if (picked != null) setState(() => _selectedDate = picked);
+      );
+      Navigator.pop(context);
+    } else {
+      // Display failure modal with retry option
+      _showFailureDialog(name, age, id);
+    }
   }
 
-  void _submit() {
-    if (_formKey.currentState!.validate() && _selectedDate != null) {
-      setState(() => _submitted = true);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Patient ${_nameCtrl.text} added successfully!'),
-        backgroundColor: const Color(0xFF00C48C),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
-      Future.delayed(const Duration(seconds: 1), () {
-        if (mounted) Navigator.pop(context);
-      });
-    } else if (_selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Please select a date'),
-        backgroundColor: const Color(0xFFFF4E6A),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
-    }
+  void _showFailureDialog(String name, int age, String id) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.error_outline, color: Color(0xFFFF4E6A)),
+              SizedBox(width: 8),
+              Text('Wearable Write Failed'),
+            ],
+          ),
+          content: const Text(
+            'The mobile app could not sync user metadata to the wearable band. Please check your Bluetooth connection and tap retry.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel', style: TextStyle(color: Colors.black.withOpacity(0.5))),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF4E6A),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                _submit();
+              },
+              child: const Text('Retry Write', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final userState = ref.watch(userProvider);
+
     return Scaffold(
       body: Column(
         children: [
-          // ── Header ──────────────────────────────────────────────────
+          // ── Dark Header ───────────────────────────────────────────────
           Container(
+            width: double.infinity,
             decoration: const BoxDecoration(
               color: Color(0xFF1A1D2E),
               borderRadius: BorderRadius.only(
@@ -79,172 +120,148 @@ class _Screen52AddNewUserState extends State<Screen52AddNewUser> {
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Container(
-                        width: 40, height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
+                          ),
                         ),
-                        child: const Icon(Icons.arrow_back_ios_new,
-                            color: Colors.white, size: 18),
+                        // Error Sim Toggle
+                        Row(
+                          children: [
+                            const Icon(Icons.bug_report, size: 16, color: Color(0xFFFF4E6A)),
+                            const SizedBox(width: 4),
+                            const Text('Simulate Error', style: TextStyle(color: Colors.white, fontSize: 10)),
+                            Checkbox(
+                              value: _simulateDeviceFailure,
+                              activeColor: const Color(0xFFFF4E6A),
+                              onChanged: (val) {
+                                setState(() {
+                                  _simulateDeviceFailure = val ?? false;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Registration Form',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
                       ),
                     ),
-                    const SizedBox(height: 22),
-                    Container(
-                      width: 56, height: 56,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00C48C).withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Icon(Icons.person_add_alt_1_rounded,
-                          color: Color(0xFF00C48C), size: 30),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text('Add a New User',
-                        style: TextStyle(
-                          color: Colors.white, fontSize: 26,
-                          fontWeight: FontWeight.w700, letterSpacing: -0.5,
-                        )),
-                    const SizedBox(height: 6),
-                    Text('Fill in the patient details below',
-                        style: TextStyle(
-                            color: Colors.white.withOpacity(0.45), fontSize: 14)),
-                    const SizedBox(height: 8),
                   ],
                 ),
               ),
             ),
           ),
 
-          // ── Form ─────────────────────────────────────────────────────
+          // ── Form Inputs ───────────────────────────────────────────────
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+              padding: const EdgeInsets.all(24),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _FormField(
-                      label: 'Patient Name',
-                      hint: 'e.g. John Doe',
-                      icon: Icons.person_outline_rounded,
-                      controller: _nameCtrl,
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Name is required' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    _FormField(
-                      label: 'Age',
-                      hint: 'e.g. 45',
-                      icon: Icons.cake_outlined,
-                      controller: _ageCtrl,
-                      keyboardType: TextInputType.number,
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return 'Age is required';
-                        if (int.tryParse(v) == null) return 'Enter a valid age';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    _FormField(
-                      label: 'Patient ID',
-                      hint: 'e.g. PT-007',
-                      icon: Icons.badge_outlined,
-                      controller: _idCtrl,
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Patient ID is required' : null,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Date picker
-                    const Text('Session Date',
-                        style: TextStyle(
-                          color: Color(0xFF1A1D2E),
-                          fontWeight: FontWeight.w600, fontSize: 13,
-                        )),
-                    const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: _pickDate,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10, offset: const Offset(0, 3),
-                          )],
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.calendar_today_outlined,
-                                color: Color(0xFF00C48C), size: 20),
-                            const SizedBox(width: 12),
-                            Text(
-                              _selectedDate == null
-                                  ? 'Select date'
-                                  : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
-                              style: TextStyle(
-                                color: _selectedDate == null
-                                    ? Colors.black.withOpacity(0.35)
-                                    : const Color(0xFF1A1D2E),
-                                fontSize: 14,
-                                fontWeight: _selectedDate == null
-                                    ? FontWeight.normal
-                                    : FontWeight.w600,
-                              ),
-                            ),
-                            const Spacer(),
-                            Icon(Icons.chevron_right,
-                                color: Colors.black.withOpacity(0.3), size: 20),
-                          ],
-                        ),
+                    const Text(
+                      'Patient Details',
+                      style: TextStyle(
+                        color: Color(0xFF1A1D2E),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
+                    const SizedBox(height: 16),
 
+                    // Name
+                    TextFormField(
+                      controller: _nameController,
+                      validator: (val) => val == null || val.trim().isEmpty ? 'Please enter a name' : null,
+                      decoration: _inputDecoration('Patient Name', Icons.person_outline),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Age
+                    TextFormField(
+                      controller: _ageController,
+                      keyboardType: TextInputType.number,
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) return 'Please enter an age';
+                        if (int.tryParse(val.trim()) == null) return 'Please enter a valid number';
+                        return null;
+                      },
+                      decoration: _inputDecoration('Age', Icons.calendar_today_outlined),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Patient ID
+                    TextFormField(
+                      controller: _idController,
+                      decoration: _inputDecoration('Patient ID (Optional, Autogenerated if blank)', Icons.fingerprint_outlined),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Date
+                    TextFormField(
+                      controller: _dateController,
+                      readOnly: true,
+                      decoration: _inputDecoration('Date Registered', Icons.date_range),
+                    ),
                     const SizedBox(height: 36),
 
-                    // Submit
+                    // Add Button
                     GestureDetector(
-                      onTap: _submit,
+                      onTap: userState.isLoading ? null : _submit,
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(vertical: 17),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF00C48C),
+                          color: const Color(0xFFFF4E6A),
                           borderRadius: BorderRadius.circular(18),
-                          boxShadow: [BoxShadow(
-                            color: const Color(0xFF00C48C).withOpacity(0.35),
-                            blurRadius: 18, offset: const Offset(0, 7),
-                          )],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              _submitted
-                                  ? Icons.check_circle
-                                  : Icons.person_add_alt_1_rounded,
-                              color: Colors.white, size: 20,
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              _submitted ? 'User Added!' : 'Add Patient',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700, fontSize: 16,
-                              ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFF4E6A).withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 5),
                             ),
                           ],
+                        ),
+                        child: Center(
+                          child: userState.isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                )
+                              : const Text(
+                                  'Add Patient to Device & Local DB',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
                         ),
                       ),
                     ),
@@ -257,69 +274,22 @@ class _Screen52AddNewUserState extends State<Screen52AddNewUser> {
       ),
     );
   }
-}
 
-class _FormField extends StatelessWidget {
-  final String label;
-  final String hint;
-  final IconData icon;
-  final TextEditingController controller;
-  final TextInputType? keyboardType;
-  final String? Function(String?)? validator;
-
-  const _FormField({
-    required this.label, required this.hint,
-    required this.icon, required this.controller,
-    this.keyboardType, this.validator,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(
-          color: Color(0xFF1A1D2E),
-          fontWeight: FontWeight.w600, fontSize: 13,
-        )),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          validator: validator,
-          style: const TextStyle(
-              color: Color(0xFF1A1D2E), fontSize: 14, fontWeight: FontWeight.w500),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(color: Colors.black.withOpacity(0.3), fontSize: 14),
-            prefixIcon: Icon(icon, color: const Color(0xFF00C48C), size: 20),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFF00C48C), width: 2),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFFF4E6A), width: 1.5),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFFF4E6A), width: 2),
-            ),
-          ),
-        ),
-      ],
+  InputDecoration _inputDecoration(String labelText, IconData icon) {
+    return InputDecoration(
+      labelText: labelText,
+      labelStyle: TextStyle(color: Colors.black.withOpacity(0.4), fontSize: 13),
+      prefixIcon: Icon(icon, color: const Color(0xFF6C63FF), size: 20),
+      filled: true,
+      fillColor: Colors.white,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.black.withOpacity(0.08)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 2),
+      ),
     );
   }
 }

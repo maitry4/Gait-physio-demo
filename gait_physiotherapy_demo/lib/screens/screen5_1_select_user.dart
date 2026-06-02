@@ -1,54 +1,96 @@
 import 'package:flutter/material.dart';
-import 'package:gait_physiotherapy_demo/screens/screen6_1_1_session_list.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/user_provider.dart';
+import '../providers/session_provider.dart';
+import 'screen5_3_session_confirmation.dart';
+import 'screen6_1_1_session_list.dart';
 
-enum SelectUserMode { newSession, viewSession }
+enum SelectUserMode { viewSession, startSession }
 
-class Screen51SelectUser extends StatefulWidget {
+class Screen51SelectUser extends ConsumerStatefulWidget {
   final SelectUserMode mode;
+
   const Screen51SelectUser({super.key, required this.mode});
 
   @override
-  State<Screen51SelectUser> createState() => _Screen51SelectUserState();
+  ConsumerState<Screen51SelectUser> createState() => _Screen51SelectUserState();
 }
 
-class _Screen51SelectUserState extends State<Screen51SelectUser> {
-  String _search = '';
-  int? _selectedIndex;
+class _Screen51SelectUserState extends ConsumerState<Screen51SelectUser> {
+  bool _forceSyncFailure = false;
 
-  final List<Map<String, dynamic>> _users = [
-    {'name': 'User 1', 'id': 'PT-001', 'age': 34, 'sessions': 8, 'initials': 'U1'},
-    {'name': 'Abc Usr', 'id': 'PT-002', 'age': 52, 'sessions': 3, 'initials': 'AU'},
-    {'name': 'Usr5', 'id': 'PT-003', 'age': 28, 'sessions': 12, 'initials': 'U5'},
-    {'name': 'John Doe', 'id': 'PT-004', 'age': 45, 'sessions': 5, 'initials': 'JD'},
-    {'name': 'Sara Khan', 'id': 'PT-005', 'age': 61, 'sessions': 2, 'initials': 'SK'},
-    {'name': 'Raj Mehta', 'id': 'PT-006', 'age': 38, 'sessions': 7, 'initials': 'RM'},
-  ];
+  void _onUserSelected(BuildContext context, WidgetRef ref, dynamic user) {
+    ref.read(userProvider.notifier).selectUser(user);
+    
+    if (widget.mode == SelectUserMode.startSession) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => Screen53SessionConfirmation(user: user),
+        ),
+      );
+    } else {
+      // Load sessions for user
+      ref.read(sessionProvider.notifier).loadSessionsForUser(user.id);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => Screen611SessionList(user: user),
+        ),
+      );
+    }
+  }
 
-  List<Map<String, dynamic>> get _filtered => _users
-      .where((u) =>
-          u['name'].toString().toLowerCase().contains(_search.toLowerCase()) ||
-          u['id'].toString().toLowerCase().contains(_search.toLowerCase()))
-      .toList();
+  void _triggerForceSync(BuildContext context, WidgetRef ref) async {
+    final activeUser = ref.read(userProvider).selectedUser;
+    if (activeUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a patient first to run background synchronization.'),
+          backgroundColor: Color(0xFFFF4E6A),
+        ),
+      );
+      return;
+    }
 
-  final List<Color> _avatarColors = [
-    const Color(0xFFFF4E6A),
-    const Color(0xFF6C63FF),
-    const Color(0xFF00C48C),
-    const Color(0xFFFFBF00),
-    const Color(0xFF00B4D8),
-    const Color(0xFFFF6B35),
-  ];
+    final notifier = ref.read(sessionProvider.notifier);
+    final success = await notifier.forceFetchSessionsFromDevice(
+      activeUser.id,
+      simulateFailure: _forceSyncFailure,
+    );
+
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Successfully synced missing sessions for ${activeUser.name} from wearable!'),
+          backgroundColor: const Color(0xFF00C48C),
+        ),
+      );
+    } else {
+      final error = ref.read(sessionProvider).errorMessage ?? 'Sync failed.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: const Color(0xFFFF4E6A),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isView = widget.mode == SelectUserMode.viewSession;
-    final accentColor = isView ? const Color(0xFF6C63FF) : const Color(0xFFFF4E6A);
+    final userState = ref.watch(userProvider);
+    final sessionState = ref.watch(sessionProvider);
+    final activeUser = userState.selectedUser;
 
     return Scaffold(
       body: Column(
         children: [
-          // ── Header ──────────────────────────────────────────────────
+          // ── Dark Header ───────────────────────────────────────────────
           Container(
+            width: double.infinity,
             decoration: const BoxDecoration(
               color: Color(0xFF1A1D2E),
               borderRadius: BorderRadius.only(
@@ -63,259 +105,235 @@ class _Screen51SelectUserState extends State<Screen51SelectUser> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Container(
-                        width: 40, height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
+                          ),
                         ),
-                        child: const Icon(Icons.arrow_back_ios_new,
-                            color: Colors.white, size: 18),
-                      ),
+                        // Force Sync button (only for View Session mode to pull offline)
+                        if (widget.mode == SelectUserMode.viewSession)
+                          sessionState.isSyncingFromDevice
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(color: Color(0xFFFF4E6A), strokeWidth: 2),
+                                )
+                              : Row(
+                                  children: [
+                                    Checkbox(
+                                      value: _forceSyncFailure,
+                                      activeColor: const Color(0xFFFF4E6A),
+                                      onChanged: (val) {
+                                        setState(() {
+                                          _forceSyncFailure = val ?? false;
+                                        });
+                                      },
+                                    ),
+                                    const Text('Simulate Error', style: TextStyle(color: Colors.white, fontSize: 10)),
+                                    const SizedBox(width: 4),
+                                    TextButton.icon(
+                                      style: TextButton.styleFrom(
+                                        backgroundColor: const Color(0xFFFF4E6A).withOpacity(0.2),
+                                        foregroundColor: const Color(0xFFFF4E6A),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                        minimumSize: Size.zero,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      ),
+                                      onPressed: () => _triggerForceSync(context, ref),
+                                      icon: const Icon(Icons.sync, size: 14),
+                                      label: const Text('Pull Wearable', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ],
+                                ),
+                      ],
                     ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 20),
                     Text(
-                      isView ? 'Select a User' : 'Select an Existing User',
-                      style: const TextStyle(
-                        color: Colors.white, fontSize: 24,
-                        fontWeight: FontWeight.w700, letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      isView
-                          ? 'Choose a patient to view their session history'
-                          : 'Pick a patient to record a new session',
+                      widget.mode == SelectUserMode.startSession ? 'Gait Recording' : 'Patient History',
                       style: TextStyle(
-                          color: Colors.white.withOpacity(0.45), fontSize: 13),
-                    ),
-                    const SizedBox(height: 18),
-                    // Search bar
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: TextField(
-                        onChanged: (v) => setState(() => _search = v),
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
-                        decoration: InputDecoration(
-                          hintText: 'Search by name or ID...',
-                          hintStyle: TextStyle(
-                              color: Colors.white.withOpacity(0.3), fontSize: 14),
-                          prefixIcon: Icon(Icons.search,
-                              color: Colors.white.withOpacity(0.4), size: 20),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 14),
-                        ),
+                        color: Colors.white.withOpacity(0.5),
+                        fontSize: 14,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const Text(
+                      'Select Patient',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
           ),
 
-          // ── User list ────────────────────────────────────────────────
+          // ── Patients List ─────────────────────────────────────────────
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+            child: userState.isLoading
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF4E6A)))
+                : Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${userState.users.length} patients registered locally',
+                          style: TextStyle(
+                            color: Colors.black.withOpacity(0.4),
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        userState.users.isEmpty
+                            ? Expanded(
+                                child: Center(
+                                  child: Text(
+                                    'No patients added yet. Add a user from the dashboard menu first.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: Colors.black.withOpacity(0.35), height: 1.5),
+                                  ),
+                                ),
+                              )
+                            : Expanded(
+                                child: ListView.separated(
+                                  itemCount: userState.users.length,
+                                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                                  itemBuilder: (context, index) {
+                                    final u = userState.users[index];
+                                    final isSelected = activeUser?.id == u.id;
+                                    return _PatientTile(
+                                      name: u.name,
+                                      age: u.age,
+                                      id: u.id,
+                                      date: u.dateAdded,
+                                      isSelected: isSelected,
+                                      onTap: () => _onUserSelected(context, ref, u),
+                                    );
+                                  },
+                                ),
+                              ),
+                      ],
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PatientTile extends StatelessWidget {
+  final String name;
+  final int age;
+  final String id;
+  final String date;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _PatientTile({
+    required this.name,
+    required this.age,
+    required this.id,
+    required this.date,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF1A1D2E) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? const Color(0xFFFF4E6A) : Colors.transparent,
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFFFF4E6A).withOpacity(0.15) : const Color(0xFF1A1D2E).withOpacity(0.06),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
+                  style: TextStyle(
+                    color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFF1A1D2E),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${_filtered.length} patients registered',
-                      style: TextStyle(
-                          color: Colors.black.withOpacity(0.4), fontSize: 13)),
-                  const SizedBox(height: 14),
-                  Expanded(
-                    child: ListView.separated(
-                      itemCount: _filtered.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final user = _filtered[index];
-                        final isSelected = _selectedIndex == index;
-                        final avatarColor =
-                            _avatarColors[index % _avatarColors.length];
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() => _selectedIndex = index);
-                            if (isView) {
-                              Future.delayed(
-                                  const Duration(milliseconds: 200), () {
-                                Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (context) => Screen611SessionList(user: user),
-  ),
-);
-                              }
-                              );
-                            }
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? const Color(0xFF1A1D2E)
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: isSelected
-                                    ? accentColor
-                                    : Colors.transparent,
-                                width: 2,
-                              ),
-                              boxShadow: [BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 10, offset: const Offset(0, 3),
-                              )],
-                            ),
-                            child: Row(
-                              children: [
-                                // Avatar
-                                Container(
-                                  width: 48, height: 48,
-                                  decoration: BoxDecoration(
-                                    color: avatarColor
-                                        .withOpacity(isSelected ? 0.25 : 0.12),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Center(
-                                    child: Text(user['initials'],
-                                        style: TextStyle(
-                                          color: isSelected
-                                              ? avatarColor
-                                              : avatarColor,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 14,
-                                        )),
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(user['name'],
-                                          style: TextStyle(
-                                            color: isSelected
-                                                ? Colors.white
-                                                : const Color(0xFF1A1D2E),
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 15,
-                                          )),
-                                      const SizedBox(height: 3),
-                                      Row(
-                                        children: [
-                                          Text(user['id'],
-                                              style: TextStyle(
-                                                color: isSelected
-                                                    ? Colors.white
-                                                        .withOpacity(0.45)
-                                                    : Colors.black
-                                                        .withOpacity(0.35),
-                                                fontSize: 12,
-                                              )),
-                                          Text('  ·  Age ${user['age']}',
-                                              style: TextStyle(
-                                                color: isSelected
-                                                    ? Colors.white
-                                                        .withOpacity(0.35)
-                                                    : Colors.black
-                                                        .withOpacity(0.25),
-                                                fontSize: 12,
-                                              )),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                // Sessions badge
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: accentColor
-                                        .withOpacity(isSelected ? 0.2 : 0.08),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text('${user['sessions']} sessions',
-                                      style: TextStyle(
-                                        color: accentColor,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                      )),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
+                  Text(
+                    name,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : const Color(0xFF1A1D2E),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Age: $age  ·  ID: $id',
+                    style: TextStyle(
+                      color: isSelected ? Colors.white.withOpacity(0.5) : Colors.black.withOpacity(0.4),
+                      fontSize: 12,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-
-          // ── Proceed button (new session mode) ────────────────────────
-          if (!isView)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 36),
-              child: AnimatedOpacity(
-                opacity: _selectedIndex != null ? 1.0 : 0.4,
-                duration: const Duration(milliseconds: 250),
-                child: GestureDetector(
-                  onTap: _selectedIndex != null
-                      ? () {
-                          // TODO: navigate to session recording screen
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                  'Starting session for ${_filtered[_selectedIndex!]['name']}'),
-                              backgroundColor: const Color(0xFFFF4E6A),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                            ),
-                          );
-                        }
-                      : null,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 17),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF4E6A),
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [BoxShadow(
-                        color: const Color(0xFFFF4E6A).withOpacity(0.35),
-                        blurRadius: 18, offset: const Offset(0, 7),
-                      )],
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.play_arrow_rounded,
-                            color: Colors.white, size: 22),
-                        SizedBox(width: 8),
-                        Text('Start Session',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                            )),
-                      ],
-                    ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Icon(Icons.chevron_right, color: isSelected ? const Color(0xFFFF4E6A) : Colors.black.withOpacity(0.2), size: 20),
+                const SizedBox(height: 4),
+                Text(
+                  date,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white.withOpacity(0.3) : Colors.black.withOpacity(0.25),
+                    fontSize: 9,
                   ),
                 ),
-              ),
+              ],
             ),
-        ],
+          ],
+        ),
       ),
     );
   }

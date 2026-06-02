@@ -1,32 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/user_model.dart';
+import '../providers/session_provider.dart';
 import 'screen6_1_2_overall_progress.dart';
 import 'screen6_1_3_session_analysis.dart';
 
-class Screen611SessionList extends StatelessWidget {
-  final Map<String, dynamic> user;
+class Screen611SessionList extends ConsumerWidget {
+  final UserModel user;
+
   const Screen611SessionList({super.key, required this.user});
 
-  final List<Map<String, dynamic>> _sessions = const [
-    {'id': 'S-001', 'date': '10 Apr 2026', 'duration': '18 min', 'score': 87, 'label': 'Baseline'},
-    {'id': 'S-002', 'date': '05 Apr 2026', 'duration': '22 min', 'score': 79, 'label': 'Follow-up'},
-    {'id': 'S-003', 'date': '28 Mar 2026', 'duration': '15 min', 'score': 91, 'label': 'Post-therapy'},
-    {'id': 'S-004', 'date': '20 Mar 2026', 'duration': '20 min', 'score': 74, 'label': 'Weekly'},
-    {'id': 'S-005', 'date': '12 Mar 2026', 'duration': '17 min', 'score': 68, 'label': 'Initial'},
-  ];
-
-  Color _scoreColor(int score) {
-    if (score >= 85) return const Color(0xFF00C48C);
-    if (score >= 70) return const Color(0xFFFFBF00);
-    return const Color(0xFFFF4E6A);
-  }
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sessionState = ref.watch(sessionProvider);
+    final sessions = sessionState.userSessions;
+
     return Scaffold(
       body: Column(
         children: [
-          // ── Header ──────────────────────────────────────────────────
+          // ── Dark Header ───────────────────────────────────────────────
           Container(
+            width: double.infinity,
             decoration: const BoxDecoration(
               color: Color(0xFF1A1D2E),
               borderRadius: BorderRadius.only(
@@ -47,206 +41,250 @@ class Screen611SessionList extends StatelessWidget {
                         GestureDetector(
                           onTap: () => Navigator.pop(context),
                           child: Container(
-                            width: 40, height: 40,
+                            width: 40,
+                            height: 40,
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.08),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.arrow_back_ios_new,
-                                color: Colors.white, size: 18),
+                            child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
                           ),
                         ),
-                        // Overall progress button
-                        GestureDetector(
-                          onTap: () => Navigator.push(context, MaterialPageRoute(
-                            builder: (_) => Screen612OverallProgress(user: user),
-                          )),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF6C63FF).withOpacity(0.18),
-                              borderRadius: BorderRadius.circular(20),
+                        // Overall Trend button (only if sessions present)
+                        if (sessions.isNotEmpty)
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF6C63FF),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                             ),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.insights_rounded,
-                                    color: Color(0xFF6C63FF), size: 16),
-                                SizedBox(width: 6),
-                                Text('Overview',
-                                    style: TextStyle(
-                                      color: Color(0xFF6C63FF),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                    )),
-                              ],
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => Screen612OverallProgress(
+                                    user: user,
+                                    sessions: sessions,
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.analytics, size: 16),
+                            label: const Text(
+                              'Overall Analysis',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                             ),
                           ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Container(
-                          width: 48, height: 48,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF6C63FF).withOpacity(0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(child: Text(
-                            user['initials'] ?? 'U',
-                            style: const TextStyle(
-                              color: Color(0xFF6C63FF),
-                              fontWeight: FontWeight.w700, fontSize: 16,
-                            ),
-                          )),
-                        ),
-                        const SizedBox(width: 14),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(user['name'],
-                                style: const TextStyle(
-                                  color: Colors.white, fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                )),
-                            Text(user['id'],
-                                style: TextStyle(
-                                    color: Colors.white.withOpacity(0.4),
-                                    fontSize: 13)),
-                          ],
-                        ),
-                      ],
+                    Text(
+                      'Session Archives',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.5),
+                        fontSize: 13,
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    const Text('Session History',
-                        style: TextStyle(
-                          color: Colors.white, fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        )),
-                    const SizedBox(height: 4),
-                    Text('Tap a session to view detailed analysis',
-                        style: TextStyle(
-                            color: Colors.white.withOpacity(0.4), fontSize: 12)),
-                    const SizedBox(height: 8),
+                    Text(
+                      user.name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
           ),
 
-          // ── Session list ─────────────────────────────────────────────
+          // ── Sessions List ─────────────────────────────────────────────
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-              itemCount: _sessions.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final s = _sessions[index];
-                final scoreColor = _scoreColor(s['score']);
-                return GestureDetector(
-                  onTap: () => Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => Screen613SessionAnalysis(
-                        session: s, user: user),
-                  )),
-                  child: Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10, offset: const Offset(0, 3),
-                      )],
-                    ),
-                    child: Row(
+            child: sessionState.isLoading
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF4E6A)))
+                : Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Score ring
-                        Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            SizedBox(
-                              width: 52, height: 52,
-                              child: CircularProgressIndicator(
-                                value: s['score'] / 100,
-                                strokeWidth: 4,
-                                backgroundColor: scoreColor.withOpacity(0.15),
-                                valueColor: AlwaysStoppedAnimation(scoreColor),
-                              ),
-                            ),
-                            Text('${s['score']}',
-                                style: TextStyle(
-                                  color: scoreColor,
-                                  fontWeight: FontWeight.w800, fontSize: 13,
-                                )),
-                          ],
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(s['id'],
-                                      style: const TextStyle(
-                                        color: Color(0xFF1A1D2E),
-                                        fontWeight: FontWeight.w700, fontSize: 15,
-                                      )),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF6C63FF)
-                                          .withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(s['label'],
-                                        style: const TextStyle(
-                                          color: Color(0xFF6C63FF),
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                        )),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Icon(Icons.calendar_today_outlined,
-                                      size: 12,
-                                      color: Colors.black.withOpacity(0.35)),
-                                  const SizedBox(width: 4),
-                                  Text(s['date'],
-                                      style: TextStyle(
-                                          color: Colors.black.withOpacity(0.4),
-                                          fontSize: 12)),
-                                  const SizedBox(width: 12),
-                                  Icon(Icons.timer_outlined,
-                                      size: 12,
-                                      color: Colors.black.withOpacity(0.35)),
-                                  const SizedBox(width: 4),
-                                  Text(s['duration'],
-                                      style: TextStyle(
-                                          color: Colors.black.withOpacity(0.4),
-                                          fontSize: 12)),
-                                ],
-                              ),
-                            ],
+                        Text(
+                          '${sessions.length} sessions logged locally in SQLite',
+                          style: TextStyle(
+                            color: Colors.black.withOpacity(0.4),
+                            fontSize: 13,
                           ),
                         ),
-                        Icon(Icons.arrow_forward_ios_rounded,
-                            color: Colors.black.withOpacity(0.2), size: 16),
+                        const SizedBox(height: 16),
+                        sessions.isEmpty
+                            ? Expanded(
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.history_toggle_off, size: 48, color: Colors.black.withOpacity(0.15)),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'No sessions recorded yet for ${user.name}.\nGo to "Start Live Session" to generate logs.',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(color: Colors.black.withOpacity(0.35), height: 1.5, fontSize: 13),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : Expanded(
+                                child: ListView.separated(
+                                  itemCount: sessions.length,
+                                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                                  itemBuilder: (context, index) {
+                                    final s = sessions[index];
+                                    return _SessionTile(
+                                      sessionId: s.id,
+                                      date: s.date,
+                                      score: s.score,
+                                      duration: s.duration,
+                                      label: s.label,
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => Screen613SessionAnalysis(
+                                              session: s.toMap(),
+                                              user: user.toMap(),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                              ),
                       ],
                     ),
                   ),
-                );
-              },
-            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SessionTile extends StatelessWidget {
+  final String sessionId;
+  final String date;
+  final int score;
+  final String duration;
+  final String label;
+  final VoidCallback onTap;
+
+  const _SessionTile({
+    required this.sessionId,
+    required this.date,
+    required this.score,
+    required this.duration,
+    required this.label,
+    required this.onTap,
+  });
+
+  Color _scoreColor() {
+    if (score >= 85) return const Color(0xFF00C48C);
+    if (score >= 72) return const Color(0xFFFFBF00);
+    return const Color(0xFFFF4E6A);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sColor = _scoreColor();
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Score circle
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: sColor, width: 2),
+                color: sColor.withOpacity(0.06),
+              ),
+              child: Center(
+                child: Text(
+                  '$score',
+                  style: TextStyle(
+                    color: sColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    sessionId,
+                    style: const TextStyle(
+                      color: Color(0xFF1A1D2E),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        date,
+                        style: TextStyle(color: Colors.black.withOpacity(0.4), fontSize: 12),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(width: 4, height: 4, decoration: BoxDecoration(color: Colors.black.withOpacity(0.2), shape: BoxShape.circle)),
+                      const SizedBox(width: 8),
+                      Text(
+                        duration,
+                        style: TextStyle(color: Colors.black.withOpacity(0.4), fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: (score >= 85 ? const Color(0xFF00C48C) : const Color(0xFF6C63FF)).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: score >= 85 ? const Color(0xFF00C48C) : const Color(0xFF6C63FF),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
-import 'screens/screen1_connectivity.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'screens/screen0_credentials.dart';
 
 void main() {
-  runApp(const GaitPhysioApp());
+  runApp(
+    const ProviderScope(
+      child: GaitPhysioApp(),
+    ),
+  );
 }
 
 class GaitPhysioApp extends StatelessWidget {
@@ -23,7 +28,7 @@ class GaitPhysioApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const Screen1Connectivity(),
+      home: const Screen0Credentials(),
     );
   }
 }

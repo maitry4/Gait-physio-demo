@@ -1,12 +1,26 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:math' as math;
+import 'screen4_home_menu.dart';
 
-class Screen613SessionAnalysis extends StatelessWidget {
+class Screen613SessionAnalysis extends StatefulWidget {
   final Map<String, dynamic> session;
   final Map<String, dynamic> user;
 
   const Screen613SessionAnalysis({
-    super.key, required this.session, required this.user,
+    super.key,
+    required this.session,
+    required this.user,
   });
+
+  @override
+  State<Screen613SessionAnalysis> createState() => _Screen613SessionAnalysisState();
+}
+
+class _Screen613SessionAnalysisState extends State<Screen613SessionAnalysis> {
+  bool _simulateSaveFailure = false;
+  bool _isSaving = false;
+  bool _saveSuccess = true; // Initially true since it writes during analysis completion
 
   Color _scoreColor(int score) {
     if (score >= 85) return const Color(0xFF00C48C);
@@ -14,15 +28,58 @@ class Screen613SessionAnalysis extends StatelessWidget {
     return const Color(0xFFFF4E6A);
   }
 
+  void _triggerStorageAction() async {
+    setState(() {
+      _isSaving = true;
+    });
+
+    await Future.delayed(const Duration(seconds: 1));
+
+    setState(() {
+      _isSaving = false;
+      _saveSuccess = !_simulateSaveFailure;
+    });
+
+    if (!mounted) return;
+
+    if (_saveSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Session data synchronized and stored successfully on wearable & local DB!'),
+          backgroundColor: Color(0xFF00C48C),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Data commit failed. Retrying sync with wearable memory address...'),
+          backgroundColor: Color(0xFFFF4E6A),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final score = session['score'] as int;
+    final score = widget.session['score'] as int;
     final scoreColor = _scoreColor(score);
+    final slmText = widget.session['slm_interpretation'] as String;
+
+    List<double> rawWf = [];
+    try {
+      final dynamic decoded = jsonDecode(widget.session['raw_waveform'] as String);
+      if (decoded is List) {
+        rawWf = decoded.map((e) => (e as num).toDouble()).toList();
+      }
+    } catch (_) {
+      // Create fallback points if decoding fails
+      rawWf = List.generate(40, (index) => math.sin(index * 0.4) * 1.2);
+    }
 
     return Scaffold(
       body: Column(
         children: [
-          // ── Header ──────────────────────────────────────────────────
+          // ── Dark Header ───────────────────────────────────────────────
           Container(
             decoration: const BoxDecoration(
               color: Color(0xFF1A1D2E),
@@ -38,17 +95,46 @@ class Screen613SessionAnalysis extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Container(
-                        width: 40, height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            // Clear history back to dashboard
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => Screen4HomeMenu(deviceName: widget.user['name']),
+                              ),
+                              (route) => false,
+                            );
+                          },
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.close, color: Colors.white, size: 18),
+                          ),
                         ),
-                        child: const Icon(Icons.arrow_back_ios_new,
-                            color: Colors.white, size: 18),
-                      ),
+                        // Storage simulation checkboxes for debugging
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _simulateSaveFailure,
+                              activeColor: const Color(0xFFFF4E6A),
+                              onChanged: (val) {
+                                setState(() {
+                                  _simulateSaveFailure = val ?? false;
+                                });
+                              },
+                            ),
+                            const Text('Simulate Error', style: TextStyle(color: Colors.white, fontSize: 10)),
+                          ],
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 20),
                     Row(
@@ -57,22 +143,22 @@ class Screen613SessionAnalysis extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(session['id'],
+                              Text(widget.session['id'],
                                   style: const TextStyle(
-                                    color: Colors.white, fontSize: 22,
+                                    color: Colors.white,
+                                    fontSize: 22,
                                     fontWeight: FontWeight.w700,
                                   )),
                               const SizedBox(height: 4),
-                              Text('${user['name']}  ·  ${session['date']}',
-                                  style: TextStyle(
-                                      color: Colors.white.withOpacity(0.45),
-                                      fontSize: 13)),
+                              Text('${widget.user['name']}  ·  ${widget.session['date']}',
+                                  style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 13)),
                             ],
                           ),
                         ),
                         // Score badge
                         Container(
-                          width: 64, height: 64,
+                          width: 64,
+                          height: 64,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(color: scoreColor, width: 3),
@@ -82,7 +168,8 @@ class Screen613SessionAnalysis extends StatelessWidget {
                             child: Text('$score',
                                 style: TextStyle(
                                   color: scoreColor,
-                                  fontWeight: FontWeight.w800, fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 20,
                                 )),
                           ),
                         ),
@@ -91,11 +178,13 @@ class Screen613SessionAnalysis extends StatelessWidget {
                     const SizedBox(height: 14),
                     // Tags row
                     Wrap(spacing: 8, children: [
-                      _Tag(label: session['label'], color: const Color(0xFF6C63FF)),
-                      _Tag(label: session['duration'], color: const Color(0xFFFFBF00),
-                          icon: Icons.timer_outlined),
+                      _Tag(label: widget.session['label'], color: const Color(0xFF6C63FF)),
+                      _Tag(
+                        label: widget.session['duration'],
+                        color: const Color(0xFFFFBF00),
+                        icon: Icons.timer_outlined,
+                      ),
                     ]),
-                    const SizedBox(height: 8),
                   ],
                 ),
               ),
@@ -109,17 +198,65 @@ class Screen613SessionAnalysis extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Waveform placeholder ────────────────────────────
+                  // ── SLM Summary Box ──────────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6C63FF).withOpacity(0.09),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFF6C63FF).withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.psychology_outlined, color: Color(0xFF6C63FF), size: 24),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'SLM INTERPRETATION SUMMARY',
+                                style: TextStyle(
+                                  color: Color(0xFF6C63FF),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 10,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                slmText,
+                                style: const TextStyle(
+                                  color: Color(0xFF1A1D2E),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // ── Waveform ───────────────────────────────────────
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      boxShadow: [BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
-                        blurRadius: 14, offset: const Offset(0, 5),
-                      )],
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 14,
+                          offset: const Offset(0, 5),
+                        )
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,18 +264,16 @@ class Screen613SessionAnalysis extends StatelessWidget {
                         const Text('Gait Waveform',
                             style: TextStyle(
                               color: Color(0xFF1A1D2E),
-                              fontWeight: FontWeight.w700, fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
                             )),
                         const SizedBox(height: 4),
-                        Text('Accelerometer data over session',
-                            style: TextStyle(
-                                color: Colors.black.withOpacity(0.35),
-                                fontSize: 12)),
-                        const SizedBox(height: 16),
+                        Text('Accelerometer points parsed from wearable SD card text logs',
+                            style: TextStyle(color: Colors.black.withOpacity(0.35), fontSize: 12)),
+                        const SizedBox(height: 20),
                         CustomPaint(
                           size: const Size(double.infinity, 80),
-                          painter: _WaveformPainter(
-                              color: scoreColor, score: score),
+                          painter: _StaticWaveformPainter(color: scoreColor, points: rawWf),
                         ),
                       ],
                     ),
@@ -150,7 +285,8 @@ class Screen613SessionAnalysis extends StatelessWidget {
                   const Text('Session Metrics',
                       style: TextStyle(
                         color: Color(0xFF1A1D2E),
-                        fontWeight: FontWeight.w700, fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
                       )),
                   const SizedBox(height: 14),
                   GridView.count(
@@ -161,72 +297,111 @@ class Screen613SessionAnalysis extends StatelessWidget {
                     mainAxisSpacing: 12,
                     childAspectRatio: 1.5,
                     children: [
-                      _MetricCard(label: 'Stride Length', value: '1.24 m',
-                          icon: Icons.straighten, color: const Color(0xFF6C63FF)),
-                      _MetricCard(label: 'Cadence', value: '112 spm',
-                          icon: Icons.speed, color: const Color(0xFFFF4E6A)),
-                      _MetricCard(label: 'Balance', value: '${score - 5}%',
-                          icon: Icons.balance, color: const Color(0xFF00C48C)),
-                      _MetricCard(label: 'Symmetry', value: '${score - 14}%',
-                          icon: Icons.compare_arrows, color: const Color(0xFFFFBF00)),
+                      _MetricCard(
+                        label: 'Stride Length',
+                        value: '${widget.session['stride_length']} m',
+                        icon: Icons.straighten,
+                        color: const Color(0xFF6C63FF),
+                      ),
+                      _MetricCard(
+                        label: 'Cadence',
+                        value: '${widget.session['cadence']} spm',
+                        icon: Icons.speed,
+                        color: const Color(0xFFFF4E6A),
+                      ),
+                      _MetricCard(
+                        label: 'Balance',
+                        value: '${widget.session['balance']}% L / ${(100 - (widget.session['balance'] as int))}% R',
+                        icon: Icons.balance,
+                        color: const Color(0xFF00C48C),
+                      ),
+                      _MetricCard(
+                        label: 'Symmetry',
+                        value: '${widget.session['symmetry']}%',
+                        icon: Icons.compare_arrows,
+                        color: const Color(0xFFFFBF00),
+                      ),
                     ],
                   ),
 
                   const SizedBox(height: 20),
 
-                  // ── Phase breakdown ─────────────────────────────────
+                  // ── Phase Breakdown ─────────────────────────────────
                   const Text('Gait Phase Breakdown',
                       style: TextStyle(
                         color: Color(0xFF1A1D2E),
-                        fontWeight: FontWeight.w700, fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
                       )),
                   const SizedBox(height: 14),
-                  _PhaseBar(label: 'Stance Phase', value: 0.62,
-                      color: const Color(0xFF6C63FF)),
+                  _PhaseBar(
+                    label: 'Stance Phase',
+                    value: widget.session['stance_phase'] as double,
+                    color: const Color(0xFF6C63FF),
+                  ),
                   const SizedBox(height: 10),
-                  _PhaseBar(label: 'Swing Phase', value: 0.38,
-                      color: const Color(0xFFFF4E6A)),
+                  _PhaseBar(
+                    label: 'Swing Phase',
+                    value: widget.session['swing_phase'] as double,
+                    color: const Color(0xFFFF4E6A),
+                  ),
                   const SizedBox(height: 10),
-                  _PhaseBar(label: 'Double Support', value: 0.22,
-                      color: const Color(0xFF00C48C)),
+                  _PhaseBar(
+                    label: 'Double Support',
+                    value: widget.session['double_support'] as double,
+                    color: const Color(0xFF00C48C),
+                  ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
-                  // ── Notes ───────────────────────────────────────────
+                  // ── Storage Status Options ──────────────────────────
                   Container(
-                    padding: const EdgeInsets.all(18),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1A1D2E),
+                      color: _saveSuccess ? const Color(0xFF00C48C).withOpacity(0.08) : const Color(0xFFFF4E6A).withOpacity(0.08),
                       borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: _saveSuccess ? const Color(0xFF00C48C).withOpacity(0.3) : const Color(0xFFFF4E6A).withOpacity(0.3),
+                      ),
                     ),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(Icons.note_alt_outlined,
-                            color: Color(0xFF6C63FF), size: 22),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Session Notes',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700, fontSize: 14,
-                                  )),
-                              const SizedBox(height: 5),
-                              Text(
-                                'Patient demonstrated improved left-right symmetry '
-                                'compared to previous session. Mild fatigue observed '
-                                'in final 5 minutes. Recommend shorter intervals.',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.55),
-                                  fontSize: 12.5, height: 1.5,
-                                ),
+                        Row(
+                          children: [
+                            Icon(
+                              _saveSuccess ? Icons.check_circle_outline : Icons.error_outline,
+                              color: _saveSuccess ? const Color(0xFF00C48C) : const Color(0xFFFF4E6A),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _saveSuccess ? 'Successfully Stored (Mobile & Band)' : 'Storage Sync Pending',
+                              style: TextStyle(
+                                color: _saveSuccess ? const Color(0xFF00C48C) : const Color(0xFFFF4E6A),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
+                        if (!_saveSuccess || _simulateSaveFailure)
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFF4E6A),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: _isSaving ? null : _triggerStorageAction,
+                            child: _isSaving
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 1.5),
+                                  )
+                                : const Text('Retry Analysis Sync', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+                          ),
                       ],
                     ),
                   ),
@@ -259,9 +434,7 @@ class _Tag extends StatelessWidget {
           Icon(icon, color: color, size: 12),
           const SizedBox(width: 4),
         ],
-        Text(label, style: TextStyle(
-          color: color, fontSize: 11, fontWeight: FontWeight.w600,
-        )),
+        Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
       ]),
     );
   }
@@ -273,8 +446,10 @@ class _MetricCard extends StatelessWidget {
   final Color color;
 
   const _MetricCard({
-    required this.label, required this.value,
-    required this.icon, required this.color,
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
   });
 
   @override
@@ -284,10 +459,7 @@ class _MetricCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(
-          color: Colors.black.withOpacity(0.05),
-          blurRadius: 8, offset: const Offset(0, 3),
-        )],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 3))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,13 +467,9 @@ class _MetricCard extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 22),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(value, style: TextStyle(
-              color: color, fontWeight: FontWeight.w800, fontSize: 17,
-            )),
-            Text(label, style: TextStyle(
-              color: Colors.black.withOpacity(0.38),
-              fontSize: 11, height: 1.3,
-            )),
+            Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 15)),
+            const SizedBox(height: 2),
+            Text(label, style: TextStyle(color: Colors.black.withOpacity(0.38), fontSize: 11, height: 1.3)),
           ]),
         ],
       ),
@@ -320,18 +488,15 @@ class _PhaseBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(label, style: const TextStyle(
-          color: Color(0xFF1A1D2E), fontWeight: FontWeight.w600, fontSize: 13,
-        )),
-        Text('${(value * 100).toInt()}%', style: TextStyle(
-          color: color, fontWeight: FontWeight.w700, fontSize: 13,
-        )),
+        Text(label, style: const TextStyle(color: Color(0xFF1A1D2E), fontWeight: FontWeight.w600, fontSize: 13)),
+        Text('${(value * 100).toInt()}%', style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 13)),
       ]),
       const SizedBox(height: 6),
       ClipRRect(
         borderRadius: BorderRadius.circular(6),
         child: LinearProgressIndicator(
-          value: value, minHeight: 8,
+          value: value,
+          minHeight: 8,
           backgroundColor: color.withOpacity(0.12),
           valueColor: AlwaysStoppedAnimation(color),
         ),
@@ -340,14 +505,15 @@ class _PhaseBar extends StatelessWidget {
   }
 }
 
-// ── Waveform painter ──────────────────────────────────────────────────────────
-class _WaveformPainter extends CustomPainter {
+class _StaticWaveformPainter extends CustomPainter {
   final Color color;
-  final int score;
-  _WaveformPainter({required this.color, required this.score});
+  final List<double> points;
+  _StaticWaveformPainter({required this.color, required this.points});
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (points.isEmpty) return;
+
     final paint = Paint()
       ..color = color
       ..strokeWidth = 2
@@ -356,34 +522,38 @@ class _WaveformPainter extends CustomPainter {
 
     final path = Path();
     final mid = size.height / 2;
-    path.moveTo(0, mid);
+    final spacing = size.width / (points.length - 1);
 
-    // Pseudo-sinusoidal waveform based on score
-    final amplitude = size.height * 0.35 * (score / 100);
-    final segments = 40;
-    for (int i = 0; i <= segments; i++) {
-      final x = (i / segments) * size.width;
-      final phase = i / segments * 6 * 3.14159;
-      final y = mid + amplitude * (i % 3 == 0 ? 0.4 : 1.0) *
-          (i % 2 == 0 ? 1 : -1) *
-          (0.5 + 0.5 * (i / segments));
-      i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
+    for (int i = 0; i < points.length; i++) {
+      final x = i * spacing;
+      final y = mid - (points[i] * (size.height * 0.3));
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
     }
 
     canvas.drawPath(path, paint);
 
     // Faded fill
-    final fillPath = Path()..addPath(path, Offset.zero)
+    final fillPath = Path()
+      ..addPath(path, Offset.zero)
       ..lineTo(size.width, mid)
       ..lineTo(0, mid)
       ..close();
-    canvas.drawPath(fillPath, Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter, end: Alignment.bottomCenter,
-        colors: [color.withOpacity(0.18), color.withOpacity(0.0)],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)));
+
+    canvas.drawPath(
+        fillPath,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [color.withOpacity(0.18), color.withOpacity(0.0)],
+          ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)));
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter _) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

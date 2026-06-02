@@ -1,29 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/connectivity_provider.dart';
 import 'screen3_connecting.dart';
 
-class Screen2DeviceList extends StatefulWidget {
+class Screen2DeviceList extends ConsumerStatefulWidget {
   const Screen2DeviceList({super.key});
 
   @override
-  State<Screen2DeviceList> createState() => _Screen2DeviceListState();
+  ConsumerState<Screen2DeviceList> createState() => _Screen2DeviceListState();
 }
 
-class _Screen2DeviceListState extends State<Screen2DeviceList> {
+class _Screen2DeviceListState extends ConsumerState<Screen2DeviceList> {
   int? _selectedIndex;
-
-  final List<Map<String, dynamic>> _devices = [
-    {'name': 'Gait Physio 1', 'signal': 90, 'id': 'GP:01:AB:CD'},
-    {'name': 'Gait Physio 2', 'signal': 72, 'id': 'GP:02:EF:GH'},
-    {'name': 'Gait Physio 3', 'signal': 55, 'id': 'GP:03:IJ:KL'},
-    {'name': 'Gait Physio 4', 'signal': 38, 'id': 'GP:04:MN:OP'},
-  ];
+  bool _simulateFailure = false;
 
   @override
   Widget build(BuildContext context) {
+    final connState = ref.watch(connectivityProvider);
+    final devices = connState.scannedDevices;
+
     return Scaffold(
       body: Column(
         children: [
-          // ── Dark header ───────────────────────────────────────────────
+          // ── Dark Header ───────────────────────────────────────────────
           Container(
             width: double.infinity,
             decoration: const BoxDecoration(
@@ -36,7 +35,7 @@ class _Screen2DeviceListState extends State<Screen2DeviceList> {
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -56,10 +55,9 @@ class _Screen2DeviceListState extends State<Screen2DeviceList> {
                                 color: Colors.white, size: 18),
                           ),
                         ),
-                        // Scanning indicator
+                        // Scanning Indicator
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 7),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                           decoration: BoxDecoration(
                             color: const Color(0xFF6C63FF).withOpacity(0.18),
                             borderRadius: BorderRadius.circular(20),
@@ -81,9 +79,9 @@ class _Screen2DeviceListState extends State<Screen2DeviceList> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 20),
                     const Text(
-                      'Available Devices',
+                      'Available Wearables',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 26,
@@ -93,73 +91,106 @@ class _Screen2DeviceListState extends State<Screen2DeviceList> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Choose a Gait Physio device to connect',
+                      'Pair your phone hotspot to the gait detection band.',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.45),
-                        fontSize: 14,
+                        fontSize: 13.5,
                       ),
                     ),
-                    const SizedBox(height: 8),
                   ],
                 ),
               ),
             ),
           ),
 
-          // ── Device list ───────────────────────────────────────────────
+          // ── Device List ───────────────────────────────────────────────
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '${_devices.length} devices found nearby',
-                    style: TextStyle(
-                      color: Colors.black.withOpacity(0.4),
-                      fontSize: 13,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${devices.length} gait bands detected',
+                        style: TextStyle(
+                          color: Colors.black.withOpacity(0.4),
+                          fontSize: 13,
+                        ),
+                      ),
+                      // Failure Simulator Checkbox
+                      Row(
+                        children: [
+                          Icon(Icons.bug_report, size: 16, color: Colors.black.withOpacity(0.4)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Simulate Error',
+                            style: TextStyle(color: Colors.black.withOpacity(0.5), fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                          Checkbox(
+                            value: _simulateFailure,
+                            activeColor: const Color(0xFFFF4E6A),
+                            onChanged: (val) {
+                              setState(() {
+                                _simulateFailure = val ?? false;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: ListView.separated(
-                      itemCount: _devices.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final device = _devices[index];
-                        final isSelected = _selectedIndex == index;
-                        return _DeviceTile(
-                          name: device['name'],
-                          deviceId: device['id'],
-                          signalStrength: device['signal'],
-                          isSelected: isSelected,
-                          onTap: () =>
-                              setState(() => _selectedIndex = index),
-                        );
-                      },
-                    ),
-                  ),
+                  const SizedBox(height: 12),
+                  devices.isEmpty
+                      ? const Expanded(
+                          child: Center(
+                            child: CircularProgressIndicator(color: Color(0xFFFF4E6A)),
+                          ),
+                        )
+                      : Expanded(
+                          child: ListView.separated(
+                            itemCount: devices.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final device = devices[index];
+                              final isSelected = _selectedIndex == index;
+                              return _DeviceTile(
+                                name: device['name'],
+                                deviceId: device['id'],
+                                signalStrength: device['signal'],
+                                isSelected: isSelected,
+                                onTap: () => setState(() => _selectedIndex = index),
+                              );
+                            },
+                          ),
+                        ),
                 ],
               ),
             ),
           ),
 
-          // ── Connect button ────────────────────────────────────────────
+          // ── Connect Button ────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
             child: AnimatedOpacity(
               opacity: _selectedIndex != null ? 1.0 : 0.4,
               duration: const Duration(milliseconds: 250),
               child: GestureDetector(
                 onTap: _selectedIndex != null
-                    ? () => Navigator.push(
+                    ? () {
+                        final chosenDevice = devices[_selectedIndex!];
+                        Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => Screen3Connecting(
-                              deviceName: _devices[_selectedIndex!]['name'],
+                              deviceName: chosenDevice['name'],
+                              simulateFailure: _simulateFailure,
                             ),
                           ),
-                        )
+                        );
+                      }
                     : null,
                 child: Container(
                   width: double.infinity,
@@ -178,11 +209,10 @@ class _Screen2DeviceListState extends State<Screen2DeviceList> {
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.bluetooth_connected,
-                          color: Colors.white, size: 20),
+                      Icon(Icons.bluetooth_connected, color: Colors.white, size: 20),
                       SizedBox(width: 10),
                       Text(
-                        'Connect to Device',
+                        'Authenticate & Connect',
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
@@ -202,7 +232,6 @@ class _Screen2DeviceListState extends State<Screen2DeviceList> {
   }
 }
 
-// ── Device tile ───────────────────────────────────────────────────────────────
 class _DeviceTile extends StatelessWidget {
   final String name;
   final String deviceId;
@@ -238,14 +267,10 @@ class _DeviceTile extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFF1A1D2E)
-              : Colors.white,
+          color: isSelected ? const Color(0xFF1A1D2E) : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected
-                ? const Color(0xFFFF4E6A)
-                : Colors.transparent,
+            color: isSelected ? const Color(0xFFFF4E6A) : Colors.transparent,
             width: 2,
           ),
           boxShadow: [
@@ -258,7 +283,6 @@ class _DeviceTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Icon container
             Container(
               width: 50,
               height: 50,
@@ -270,14 +294,11 @@ class _DeviceTile extends StatelessWidget {
               ),
               child: Icon(
                 Icons.watch,
-                color: isSelected
-                    ? const Color(0xFFFF4E6A)
-                    : const Color(0xFF1A1D2E),
+                color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFF1A1D2E),
                 size: 26,
               ),
             ),
             const SizedBox(width: 14),
-            // Name & ID
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -294,20 +315,16 @@ class _DeviceTile extends StatelessWidget {
                   Text(
                     deviceId,
                     style: TextStyle(
-                      color: isSelected
-                          ? Colors.white.withOpacity(0.45)
-                          : Colors.black.withOpacity(0.35),
+                      color: isSelected ? Colors.white.withOpacity(0.45) : Colors.black.withOpacity(0.35),
                       fontSize: 12,
                     ),
                   ),
                 ],
               ),
             ),
-            // Signal
             Column(
               children: [
-                Icon(_signalIcon(),
-                    color: _signalColor(), size: 20),
+                Icon(_signalIcon(), color: _signalColor(), size: 20),
                 const SizedBox(height: 3),
                 Text(
                   '$signalStrength%',
@@ -321,8 +338,7 @@ class _DeviceTile extends StatelessWidget {
             ),
             if (isSelected) ...[
               const SizedBox(width: 12),
-              const Icon(Icons.check_circle,
-                  color: Color(0xFFFF4E6A), size: 22),
+              const Icon(Icons.check_circle, color: Color(0xFFFF4E6A), size: 22),
             ],
           ],
         ),
@@ -331,7 +347,6 @@ class _DeviceTile extends StatelessWidget {
   }
 }
 
-// ── Pulsing dot widget ────────────────────────────────────────────────────────
 class _PulsingDot extends StatefulWidget {
   final Color color;
   const _PulsingDot({required this.color});
@@ -340,17 +355,14 @@ class _PulsingDot extends StatefulWidget {
   State<_PulsingDot> createState() => _PulsingDotState();
 }
 
-class _PulsingDotState extends State<_PulsingDot>
-    with SingleTickerProviderStateMixin {
+class _PulsingDotState extends State<_PulsingDot> with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _anim;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900))
-      ..repeat(reverse: true);
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat(reverse: true);
     _anim = Tween(begin: 0.4, end: 1.0).animate(_ctrl);
   }
 

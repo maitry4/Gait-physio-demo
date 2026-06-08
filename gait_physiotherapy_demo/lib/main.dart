@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'screens/screen0_credentials.dart';
+import 'package:gait_physiotherapy_demo/core/router/app_router.dart';
+import 'package:gait_physiotherapy_demo/core/themes/app_theme.dart';
 
 void main() {
   runApp(
@@ -10,25 +11,18 @@ void main() {
   );
 }
 
-class GaitPhysioApp extends StatelessWidget {
+class GaitPhysioApp extends ConsumerWidget {
   const GaitPhysioApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
+
+    return MaterialApp.router(
       title: 'Gait Physio',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        fontFamily: 'Poppins',
-        scaffoldBackgroundColor: const Color(0xFFF0F2F8),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFFF4E6A),
-          primary: const Color(0xFFFF4E6A),
-          secondary: const Color(0xFF6C63FF),
-        ),
-        useMaterial3: true,
-      ),
-      home: const Screen0Credentials(),
+      theme: AppTheme.light,
+      routerConfig: router,
     );
   }
 }

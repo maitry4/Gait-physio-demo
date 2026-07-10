@@ -7,7 +7,6 @@ import 'package:gait_physiotherapy_demo/features/connectivity/presentation/scree
 import 'package:gait_physiotherapy_demo/features/connectivity/presentation/screens/device_list_screen.dart';
 import 'package:gait_physiotherapy_demo/features/home/presentation/screens/home_screen.dart';
 import 'package:gait_physiotherapy_demo/features/report/presentation/screens/therapist_pdf_screen.dart';
-import 'package:gait_physiotherapy_demo/features/research_share/presentation/screens/research_share_screen.dart';
 import 'package:gait_physiotherapy_demo/features/session/domain/entities/session_entity.dart';
 import 'package:gait_physiotherapy_demo/features/session/presentation/screens/analysis_processing_screen.dart';
 import 'package:gait_physiotherapy_demo/features/session/presentation/screens/live_session_screen.dart';
@@ -18,6 +17,7 @@ import 'package:gait_physiotherapy_demo/features/user_management/presentation/sc
 import 'package:gait_physiotherapy_demo/features/view_session/presentation/screens/overall_progress_screen.dart';
 import 'package:gait_physiotherapy_demo/features/view_session/presentation/screens/session_analysis_screen.dart';
 import 'package:gait_physiotherapy_demo/features/view_session/presentation/screens/session_list_screen.dart';
+import 'package:gait_physiotherapy_demo/features/settings/presentation/settings_page.dart';
 
 abstract final class AppRoutes {
   static const credentials = 'credentials';
@@ -35,6 +35,7 @@ abstract final class AppRoutes {
   static const addUser = 'addUser';
   static const researchShare = 'researchShare';
   static const therapistPdf = 'therapistPdf';
+  static const settings = 'settings';
 }
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -42,7 +43,7 @@ final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/credentials',
+    initialLocation: '/home',
     routes: [
       GoRoute(
         path: '/credentials',
@@ -159,14 +160,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const Screen52AddNewUser(),
       ),
       GoRoute(
-        path: '/research-share',
-        name: AppRoutes.researchShare,
-        builder: (context, state) => const Screen7ResearchShare(),
-      ),
-      GoRoute(
         path: '/therapist-pdf',
         name: AppRoutes.therapistPdf,
         builder: (context, state) => const Screen8TherapistPdf(),
+      ),
+      GoRoute(
+        path: '/settings',
+        name: AppRoutes.settings,
+        builder: (context, state) => const SettingsPage(),
       ),
     ],
   );

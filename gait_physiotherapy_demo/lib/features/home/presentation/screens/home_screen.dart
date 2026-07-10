@@ -187,6 +187,11 @@ class Screen4HomeMenu extends ConsumerWidget {
     }
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.primary,
+        onPressed: () => context.pushNamed(AppRoutes.settings),
+        child: const Icon(Icons.settings, color: Colors.white),
+      ),
       body: Column(
         children: [
           // ── Dashboard Header ──────────────────────────────────────────
@@ -335,13 +340,6 @@ class Screen4HomeMenu extends ConsumerWidget {
                           AppRoutes.selectUser,
                           extra: {'mode': SelectUserMode.viewSession},
                         ),
-                      ),
-                      // 3. Share Data for Research
-                      GridCard(
-                        title: 'Share Dataset',
-                        icon: Icons.share,
-                        color: AppColors.success,
-                        onTap: () => context.pushNamed(AppRoutes.researchShare),
                       ),
                       // 4. Add User
                       GridCard(

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gait_physiotherapy_demo/core/router/app_router.dart';
 import 'package:gait_physiotherapy_demo/core/themes/app_theme.dart';
-import 'package:gait_physiotherapy_demo/features/test/presentation/gait_ui.dart';
 
 void main() {
   runApp(

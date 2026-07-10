@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:wifi_iot/wifi_iot.dart';
 import 'package:gait_physiotherapy_demo/core/database/database_service.dart';
 
 enum ConnectivityStatus { disconnected, scanning, connecting, connected }
@@ -52,10 +55,30 @@ class ConnectivityState {
 }
 
 class ConnectivityNotifier extends Notifier<ConnectivityState> {
+  StreamSubscription? _btSub;
+
   @override
   ConnectivityState build() {
-    Future.microtask(() => _loadSavedCredentials());
+    Future.microtask(() {
+      _loadSavedCredentials();
+      _initHardwareListeners();
+    });
+
+    ref.onDispose(() {
+      _btSub?.cancel();
+    });
+
     return ConnectivityState();
+  }
+
+  /// Only Bluetooth adapter state is auto-detected via the OS stream.
+  /// Hotspot status is intentionally NOT polled here — it's controlled
+  /// manually by the user via [toggleHotspot], since `isWiFiAPEnabled()`
+  /// is unreliable across many Android OEMs/versions.
+  void _initHardwareListeners() {
+    _btSub = FlutterBluePlus.adapterState.listen((adapterState) {
+      state = state.copyWith(isBluetoothOn: adapterState == BluetoothAdapterState.on);
+    });
   }
 
   Future<void> _loadSavedCredentials() async {
@@ -87,12 +110,32 @@ class ConnectivityNotifier extends Notifier<ConnectivityState> {
     }
   }
 
-  void toggleBluetooth(bool value) {
-    state = state.copyWith(isBluetoothOn: value, errorMessage: null);
+  Future<void> toggleBluetooth(bool value) async {
+    try {
+      if (value) {
+        await FlutterBluePlus.turnOn();
+      }
+    } catch (e) {
+      print('BT toggle error: $e');
+    }
   }
 
-  void toggleHotspot(bool value) {
+  /// Manual hotspot toggle. The user is the source of truth here: tapping
+  /// the pill immediately flips [isHotspotOn] to reflect what the user
+  /// confirms, rather than waiting on/trusting a platform status query.
+  /// We still attempt to call the platform API best-effort, but a failure
+  /// there does not revert the user's manual confirmation.
+  Future<void> toggleHotspot(bool value) async {
     state = state.copyWith(isHotspotOn: value, errorMessage: null);
+
+    try {
+      await WiFiForIoTPlugin.setWiFiAPEnabled(value);
+    } catch (e) {
+      print('Hotspot toggle error: $e');
+      // Intentionally not reverting state.isHotspotOn — detection is manual,
+      // so the user's confirmation stands even if the platform call fails
+      // (e.g. unsupported on this device/OS version).
+    }
   }
 
   void startScanning() {
@@ -116,25 +159,17 @@ class ConnectivityNotifier extends Notifier<ConnectivityState> {
     });
   }
 
-  Future<bool> connectToDevice(String deviceName, {bool simulateFailure = false}) async {
+  Future<bool> connectToDevice(String deviceName) async {
     state = state.copyWith(status: ConnectivityStatus.connecting, errorMessage: null);
 
     await Future.delayed(const Duration(seconds: 2));
 
-    if (simulateFailure) {
-      state = state.copyWith(
-        status: ConnectivityStatus.disconnected,
-        errorMessage: 'Bluetooth Connection Failed. Device responded with error code 0xEF.',
-      );
-      return false;
-    } else {
-      state = state.copyWith(
-        status: ConnectivityStatus.connected,
-        connectedDeviceName: deviceName,
-        errorMessage: null,
-      );
-      return true;
-    }
+    state = state.copyWith(
+      status: ConnectivityStatus.connected,
+      connectedDeviceName: deviceName,
+      errorMessage: null,
+    );
+    return true;
   }
 
   void disconnect() {

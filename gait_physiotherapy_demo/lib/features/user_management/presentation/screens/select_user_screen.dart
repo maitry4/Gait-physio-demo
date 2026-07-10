@@ -19,7 +19,7 @@ class Screen51SelectUser extends ConsumerStatefulWidget {
 }
 
 class _Screen51SelectUserState extends ConsumerState<Screen51SelectUser> {
-  bool _forceSyncFailure = false;
+
 
   void _onUserSelected(BuildContext context, WidgetRef ref, dynamic user) {
     ref.read(userProvider.notifier).selectUser(user);
@@ -54,7 +54,6 @@ class _Screen51SelectUserState extends ConsumerState<Screen51SelectUser> {
     final notifier = ref.read(viewSessionProvider.notifier);
     final success = await notifier.forceFetchSessionsFromDevice(
       activeUser.id,
-      simulateFailure: _forceSyncFailure,
     );
 
     if (!mounted) return;
@@ -126,32 +125,17 @@ class _Screen51SelectUserState extends ConsumerState<Screen51SelectUser> {
                                   height: 24,
                                   child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
                                 )
-                              : Row(
-                                  children: [
-                                    Checkbox(
-                                      value: _forceSyncFailure,
-                                      activeColor: AppColors.primary,
-                                      onChanged: (val) {
-                                        setState(() {
-                                          _forceSyncFailure = val ?? false;
-                                        });
-                                      },
-                                    ),
-                                    const Text('Simulate Error', style: TextStyle(color: Colors.white, fontSize: 10)),
-                                    const SizedBox(width: 4),
-                                    TextButton.icon(
-                                      style: TextButton.styleFrom(
-                                        backgroundColor: AppColors.primary.withOpacity(0.2),
-                                        foregroundColor: AppColors.primary,
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                        minimumSize: Size.zero,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                      ),
-                                      onPressed: () => _triggerForceSync(context, ref),
-                                      icon: const Icon(Icons.sync, size: 14),
-                                      label: const Text('Pull Wearable', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                                    ),
-                                  ],
+                              : TextButton.icon(
+                                  style: TextButton.styleFrom(
+                                    backgroundColor: AppColors.primary.withOpacity(0.2),
+                                    foregroundColor: AppColors.primary,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    minimumSize: Size.zero,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  onPressed: () => _triggerForceSync(context, ref),
+                                  icon: const Icon(Icons.sync, size: 14),
+                                  label: const Text('Pull Wearable', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                                 ),
                       ],
                     ),

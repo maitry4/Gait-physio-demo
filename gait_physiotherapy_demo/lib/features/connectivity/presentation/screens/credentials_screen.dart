@@ -3,6 +3,7 @@ import 'package:gait_physiotherapy_demo/core/themes/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gait_physiotherapy_demo/core/router/app_router.dart';
+import 'package:gait_physiotherapy_demo/core/services/secure_storage_service.dart';
 import 'package:gait_physiotherapy_demo/features/connectivity/presentation/providers/connectivity_provider.dart';
 
 class Screen0Credentials extends ConsumerStatefulWidget {
@@ -39,7 +40,7 @@ class _Screen0CredentialsState extends ConsumerState<Screen0Credentials> {
     super.dispose();
   }
 
-  void _submit() {
+  void _submit() async {
     setState(() {
       _localError = null;
     });
@@ -63,9 +64,15 @@ class _Screen0CredentialsState extends ConsumerState<Screen0Credentials> {
 
     // Save/update credentials in Riverpod
     ref.read(connectivityProvider.notifier).updateCredentials(ssid, password, _rememberMe);
+    
+    await SecureStorageService.saveHotspotCredentials(ssid, password);
 
-    // Proceed to Turn On BT + Hotspot screen
-    context.pushNamed(AppRoutes.connectivity);
+    // Proceed or pop back to checks
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.pushNamed(AppRoutes.connectivity);
+    }
   }
 
   @override

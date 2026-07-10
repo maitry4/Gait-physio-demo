@@ -23,7 +23,7 @@ class Screen613SessionAnalysis extends StatefulWidget {
 }
 
 class _Screen613SessionAnalysisState extends State<Screen613SessionAnalysis> {
-  bool _simulateSaveFailure = false;
+
   bool _isSaving = false;
   bool _saveSuccess = true; // Initially true since it writes during analysis completion
 
@@ -42,7 +42,7 @@ class _Screen613SessionAnalysisState extends State<Screen613SessionAnalysis> {
 
     setState(() {
       _isSaving = false;
-      _saveSuccess = !_simulateSaveFailure;
+      _saveSuccess = true;
     });
 
     if (!mounted) return;
@@ -120,21 +120,6 @@ class _Screen613SessionAnalysisState extends State<Screen613SessionAnalysis> {
                             ),
                             child: const Icon(Icons.close, color: Colors.white, size: 18),
                           ),
-                        ),
-                        // Storage simulation checkboxes for debugging
-                        Row(
-                          children: [
-                            Checkbox(
-                              value: _simulateSaveFailure,
-                              activeColor: AppColors.primary,
-                              onChanged: (val) {
-                                setState(() {
-                                  _simulateSaveFailure = val ?? false;
-                                });
-                              },
-                            ),
-                            const Text('Simulate Error', style: TextStyle(color: Colors.white, fontSize: 10)),
-                          ],
                         ),
                       ],
                     ),
@@ -388,7 +373,7 @@ class _Screen613SessionAnalysisState extends State<Screen613SessionAnalysis> {
                             ),
                           ],
                         ),
-                        if (!_saveSuccess || _simulateSaveFailure)
+                        if (!_saveSuccess)
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,

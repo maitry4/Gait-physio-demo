@@ -9,12 +9,10 @@ import 'package:gait_physiotherapy_demo/features/user_management/domain/entities
 
 class Screen54AnalysisProcessing extends ConsumerStatefulWidget {
   final UserModel user;
-  final bool simulateFailure;
 
   const Screen54AnalysisProcessing({
     super.key,
     required this.user,
-    required this.simulateFailure,
   });
 
   @override
@@ -49,7 +47,7 @@ class _Screen54AnalysisProcessingState extends ConsumerState<Screen54AnalysisPro
 
   Future<void> _runAnalysis() async {
     final notifier = ref.read(sessionProvider.notifier);
-    await notifier.stopRecordingAndAnalyze(widget.user.id, simulateFailure: widget.simulateFailure);
+    await notifier.stopRecordingAndAnalyze(widget.user.id);
   }
 
   @override

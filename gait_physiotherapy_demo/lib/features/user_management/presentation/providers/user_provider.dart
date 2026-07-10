@@ -55,20 +55,14 @@ class UserNotifier extends Notifier<UserState> {
     required String name,
     required int age,
     required String id,
-    bool simulateDeviceFailure = false,
+
   }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     // Simulate sending data to the wearable device
     await Future.delayed(const Duration(milliseconds: 1200));
 
-    if (simulateDeviceFailure) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: 'Wearable Sync Failed: Device did not confirm patient storage. Tap retry.',
-      );
-      return false;
-    }
+
 
     // Success -> Store on wearable completed. Create on mobile SQLite DB.
     final newUser = UserModel(

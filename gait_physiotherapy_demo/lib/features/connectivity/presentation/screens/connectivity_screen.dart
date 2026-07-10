@@ -105,7 +105,7 @@ class Screen1Connectivity extends ConsumerWidget {
                       child: Text(
                         bothEnabled
                             ? 'Bluetooth and Hotspot configurations validated. Press below to begin searching for your Gait band.'
-                            : 'Enable both Bluetooth and Hotspot. BLE handles initial sync; Wi-Fi transfers high-speed biomechanics data.',
+                            : 'Enable Bluetooth, then confirm your Hotspot is on by tapping its pill below — hotspot status can\'t always be auto-detected, so please confirm it manually.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.55),
@@ -145,6 +145,7 @@ class Screen1Connectivity extends ConsumerWidget {
                         isOff: !connState.isHotspotOn,
                         color: connState.isHotspotOn ? AppColors.success : AppColors.secondary,
                         onTap: () => connNotifier.toggleHotspot(!connState.isHotspotOn),
+                        subtitleOverride: connState.isHotspotOn ? 'CONFIRMED' : 'TAP TO CONFIRM',
                       ),
                     ],
                   ),
@@ -154,13 +155,17 @@ class Screen1Connectivity extends ConsumerWidget {
                   GestureDetector(
                     onTap: () {
                       if (bothEnabled) {
-                        connNotifier.startScanning();
-                        context.pushNamed(AppRoutes.deviceList);
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          connNotifier.startScanning();
+                          context.pushNamed(AppRoutes.deviceList);
+                        }
                       } else {
                         // Display error message
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Please enable both Bluetooth and Hotspot toggles to continue.'),
+                            content: Text('Please enable Bluetooth and confirm Hotspot is on to continue.'),
                             backgroundColor: AppColors.primary,
                           ),
                         );
@@ -193,7 +198,9 @@ class Screen1Connectivity extends ConsumerWidget {
                           ),
                           const SizedBox(width: 10),
                           Text(
-                            bothEnabled ? 'Scan for Gait Devices' : 'Toggles Required',
+                            bothEnabled
+                                ? (context.canPop() ? 'Return to Checks' : 'Scan for Gait Devices')
+                                : 'Toggles Required',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
@@ -230,6 +237,7 @@ class _StatusPill extends StatelessWidget {
   final bool isOff;
   final Color color;
   final VoidCallback onTap;
+  final String? subtitleOverride;
 
   const _StatusPill({
     required this.icon,
@@ -237,6 +245,7 @@ class _StatusPill extends StatelessWidget {
     required this.isOff,
     required this.color,
     required this.onTap,
+    this.subtitleOverride,
   });
 
   @override
@@ -269,7 +278,7 @@ class _StatusPill extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      isOff ? 'OFF (Tap)' : 'ACTIVE',
+                      subtitleOverride ?? (isOff ? 'OFF (Tap)' : 'ACTIVE'),
                       style: TextStyle(
                         color: color.withOpacity(0.6),
                         fontSize: 10,

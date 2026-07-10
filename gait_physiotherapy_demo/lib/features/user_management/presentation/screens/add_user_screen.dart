@@ -17,7 +17,7 @@ class _Screen52AddNewUserState extends ConsumerState<Screen52AddNewUser> {
   final _ageController = TextEditingController();
   final _idController = TextEditingController();
   final _dateController = TextEditingController();
-  bool _simulateDeviceFailure = false;
+
 
   @override
   void initState() {
@@ -45,7 +45,6 @@ class _Screen52AddNewUserState extends ConsumerState<Screen52AddNewUser> {
           name: name,
           age: age,
           id: id,
-          simulateDeviceFailure: _simulateDeviceFailure,
         );
 
     if (!mounted) return;
@@ -141,23 +140,7 @@ class _Screen52AddNewUserState extends ConsumerState<Screen52AddNewUser> {
                             child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
                           ),
                         ),
-                        // Error Sim Toggle
-                        Row(
-                          children: [
-                            const Icon(Icons.bug_report, size: 16, color: AppColors.primary),
-                            const SizedBox(width: 4),
-                            const Text('Simulate Error', style: TextStyle(color: Colors.white, fontSize: 10)),
-                            Checkbox(
-                              value: _simulateDeviceFailure,
-                              activeColor: AppColors.primary,
-                              onChanged: (val) {
-                                setState(() {
-                                  _simulateDeviceFailure = val ?? false;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
+                        // Removed Error Sim Toggle
                       ],
                     ),
                     const SizedBox(height: 20),

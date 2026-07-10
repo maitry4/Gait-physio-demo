@@ -52,7 +52,7 @@ class ViewSessionNotifier extends Notifier<ViewSessionState> {
   }
 
   // ── Sync from Wearable Device behind scenes (Fallback trigger) ───────────────
-  Future<bool> forceFetchSessionsFromDevice(String userId, {bool simulateFailure = false}) async {
+  Future<bool> forceFetchSessionsFromDevice(String userId) async {
     state = state.copyWith(
       isSyncingFromDevice: true,
       syncStatusMessage: 'Connecting to wearable over local Wi-Fi Hotspot...',
@@ -60,14 +60,7 @@ class ViewSessionNotifier extends Notifier<ViewSessionState> {
     );
 
     await Future.delayed(const Duration(seconds: 1));
-    if (simulateFailure) {
-      state = state.copyWith(
-        isSyncingFromDevice: false,
-        syncStatusMessage: '',
-        errorMessage: () => 'Wi-Fi Socket Connection Refused. Ensure device is powered on.',
-      );
-      return false;
-    }
+
 
     state = state.copyWith(syncStatusMessage: 'Requesting raw data files from SD card...');
     await Future.delayed(const Duration(seconds: 1));

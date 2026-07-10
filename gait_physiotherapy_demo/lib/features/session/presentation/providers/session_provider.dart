@@ -175,7 +175,7 @@ class SessionNotifier extends Notifier<SessionState> {
     });
   }
 
-  Future<void> stopRecordingAndAnalyze(String userId, {bool simulateFailure = false}) async {
+  Future<void> stopRecordingAndAnalyze(String userId) async {
     try {
       _recordTimer?.cancel();
       _waveformTimer?.cancel();
@@ -192,14 +192,7 @@ class SessionNotifier extends Notifier<SessionState> {
       state = state.copyWith(syncStatusMessage: 'Fetching raw TXT telemetry from wearable SD card...');
       await Future.delayed(const Duration(milliseconds: 1200));
 
-      if (simulateFailure) {
-        await DatabaseService.instance.clearActiveSession();
-        state = state.copyWith(
-          isSyncingFromDevice: false,
-          errorMessage: () => 'Data Transfer Aborted: Wearable reported SD card read timeout.',
-        );
-        return;
-      }
+
 
       state = state.copyWith(syncStatusMessage: 'Analyzing gait cycle using local SLM models...');
       await Future.delayed(const Duration(milliseconds: 1000));

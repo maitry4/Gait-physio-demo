@@ -15,7 +15,7 @@ class Screen2DeviceList extends ConsumerStatefulWidget {
 
 class _Screen2DeviceListState extends ConsumerState<Screen2DeviceList> {
   int? _selectedIndex;
-  bool _simulateFailure = false;
+
 
   @override
   Widget build(BuildContext context) {
@@ -123,26 +123,7 @@ class _Screen2DeviceListState extends ConsumerState<Screen2DeviceList> {
                           fontSize: 13,
                         ),
                       ),
-                      // Failure Simulator Checkbox
-                      Row(
-                        children: [
-                          Icon(Icons.bug_report, size: 16, color: Colors.black.withOpacity(0.4)),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Simulate Error',
-                            style: TextStyle(color: Colors.black.withOpacity(0.5), fontSize: 11, fontWeight: FontWeight.bold),
-                          ),
-                          Checkbox(
-                            value: _simulateFailure,
-                            activeColor: AppColors.primary,
-                            onChanged: (val) {
-                              setState(() {
-                                _simulateFailure = val ?? false;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
+
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -188,7 +169,6 @@ class _Screen2DeviceListState extends ConsumerState<Screen2DeviceList> {
                           AppRoutes.connecting,
                           extra: {
                             'deviceName': chosenDevice['name'],
-                            'simulateFailure': _simulateFailure,
                           },
                         );
                       }

@@ -17,7 +17,7 @@ class Screen5NewSession extends ConsumerStatefulWidget {
 }
 
 class _Screen5NewSessionState extends ConsumerState<Screen5NewSession> {
-  bool _simulateTransferFailure = false;
+
 
   @override
   void initState() {
@@ -77,26 +77,7 @@ class _Screen5NewSessionState extends ConsumerState<Screen5NewSession> {
                       ),
                     ],
                   ),
-                  // Failure Simulator switch
-                  Row(
-                    children: [
-                      const Icon(Icons.bug_report, size: 16, color: AppColors.primary),
-                      const SizedBox(width: 4),
-                      const Text(
-                        'Simulate Error',
-                        style: TextStyle(color: Colors.white, fontSize: 10),
-                      ),
-                      Checkbox(
-                        value: _simulateTransferFailure,
-                        activeColor: AppColors.primary,
-                        onChanged: (val) {
-                          setState(() {
-                            _simulateTransferFailure = val ?? false;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
+
                 ],
               ),
 
@@ -182,7 +163,6 @@ class _Screen5NewSessionState extends ConsumerState<Screen5NewSession> {
                     AppRoutes.analysisProcessing,
                     extra: {
                       'user': widget.user,
-                      'simulateFailure': _simulateTransferFailure,
                     },
                   );
                 },

@@ -1,21 +1,60 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gait_physiotherapy_demo/core/themes/app_colors.dart';
-import 'package:gait_physiotherapy_demo/features/home/presentation/widgets/grid_card.dart';
+import 'package:gait_physiotherapy_demo/features/settings/presentation/providers/settings_provider.dart';
 
-class SettingsPage extends StatefulWidget {
+class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
-  @override
-  State<SettingsPage> createState() => _SettingsPageState();
-}
+  Future<void> _handleSlmChange(
+    BuildContext context,
+    WidgetRef ref,
+    String currentValue,
+    String? newValue,
+  ) async {
+    if (newValue == null || newValue == currentValue) return;
 
-class _SettingsPageState extends State<SettingsPage> {
-  String _selectedSlm = 'online';
-  bool _federatedLearningConsent = false;
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Change SLM Preference?'),
+          content: Text(
+            'Are you sure you want to change the SLM preference to $newValue? '
+            'Local models may require downloading large files and use more system resources.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Confirm'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      ref.read(settingsProvider.notifier).updateSlmPreference(newValue);
+    }
+  }
+
+  Future<void> _handleSave(BuildContext context, WidgetRef ref) async {
+    await ref.read(settingsProvider.notifier).save();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Settings saved')),
+    );
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final hasUnsavedChanges = ref.watch(hasUnsavedSettingsChangesProvider);
+
     return Scaffold(
       backgroundColor: AppColors.scaffold,
       appBar: AppBar(
@@ -31,11 +70,7 @@ class _SettingsPageState extends State<SettingsPage> {
           children: [
             const Text(
               'SLM Preference',
-              style: TextStyle(
-                color: AppColors.navy,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
+              style: TextStyle(color: AppColors.navy, fontSize: 18, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Container(
@@ -43,11 +78,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
+                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
                 ],
               ),
               child: Column(
@@ -55,27 +86,27 @@ class _SettingsPageState extends State<SettingsPage> {
                   RadioListTile<String>(
                     title: const Text('Online (Default)', style: TextStyle(fontWeight: FontWeight.w600)),
                     value: 'online',
-                    groupValue: _selectedSlm,
+                    groupValue: settings.slmPreference,
                     activeColor: AppColors.primary,
-                    onChanged: (val) => setState(() => _selectedSlm = val!),
+                    onChanged: (val) => _handleSlmChange(context, ref, settings.slmPreference, val),
                   ),
                   const Divider(height: 1, indent: 16, endIndent: 16),
                   RadioListTile<String>(
                     title: const Text('Phi-4 Mini (Local)', style: TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: const Text('Min. req: 4GB RAM (8GB+ recommended), ~3GB storage'),
                     value: 'phi-4-mini',
-                    groupValue: _selectedSlm,
+                    groupValue: settings.slmPreference,
                     activeColor: AppColors.primary,
-                    onChanged: (val) => setState(() => _selectedSlm = val!),
+                    onChanged: (val) => _handleSlmChange(context, ref, settings.slmPreference, val),
                   ),
                   const Divider(height: 1, indent: 16, endIndent: 16),
                   RadioListTile<String>(
                     title: const Text('Gemma 4 (Local)', style: TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: const Text('Min. req: ~1.5GB-4GB RAM (E2B) or 6GB-8GB RAM (E4B)'),
                     value: 'gemma-4',
-                    groupValue: _selectedSlm,
+                    groupValue: settings.slmPreference,
                     activeColor: AppColors.primary,
-                    onChanged: (val) => setState(() => _selectedSlm = val!),
+                    onChanged: (val) => _handleSlmChange(context, ref, settings.slmPreference, val),
                   ),
                 ],
               ),
@@ -83,11 +114,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 32),
             const Text(
               'Privacy & Data',
-              style: TextStyle(
-                color: AppColors.navy,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
+              style: TextStyle(color: AppColors.navy, fontSize: 18, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Container(
@@ -96,27 +123,51 @@ class _SettingsPageState extends State<SettingsPage> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
+                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
                 ],
               ),
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Federated Learning Consent', style: TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: const Text("By enabling this, you agree to share your patient's data anonymously."),
-                    value: _federatedLearningConsent,
-                    activeColor: AppColors.primary,
-                    onChanged: (val) => setState(() => _federatedLearningConsent = val),
-                  ),
-                ],
+              child: SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Federated Learning Consent', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text("By enabling this, you agree to share your patient's data anonymously."),
+                value: settings.federatedLearningConsent,
+                activeColor: AppColors.primary,
+                onChanged: (val) => ref.read(settingsProvider.notifier).updateConsent(val),
               ),
             ),
             const SizedBox(height: 32),
+            GestureDetector(
+              onTap: hasUnsavedChanges ? () => _handleSave(context, ref) : null,
+              child: AnimatedOpacity(
+                opacity: hasUnsavedChanges ? 1 : 0.5,
+                duration: const Duration(milliseconds: 150),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 17),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 5)),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.save_outlined, color: Colors.white, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Save Settings',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15, letterSpacing: 0.2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             GestureDetector(
               onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -130,11 +181,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   color: AppColors.success,
                   borderRadius: BorderRadius.circular(18),
                   boxShadow: [
-                    BoxShadow(
-                      color: AppColors.success.withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 5),
-                    ),
+                    BoxShadow(color: AppColors.success.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 5)),
                   ],
                 ),
                 child: const Center(
@@ -145,12 +192,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       SizedBox(width: 8),
                       Text(
                         'Export Data',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          letterSpacing: 0.2,
-                        ),
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15, letterSpacing: 0.2),
                       ),
                     ],
                   ),

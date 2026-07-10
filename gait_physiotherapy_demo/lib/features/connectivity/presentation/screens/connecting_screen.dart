@@ -8,12 +8,10 @@ import 'package:gait_physiotherapy_demo/features/connectivity/presentation/provi
 
 class Screen3Connecting extends ConsumerStatefulWidget {
   final String deviceName;
-  final bool simulateFailure;
 
   const Screen3Connecting({
     super.key,
     required this.deviceName,
-    required this.simulateFailure,
   });
 
   @override
@@ -56,7 +54,6 @@ class _Screen3ConnectingState extends ConsumerState<Screen3Connecting>
       // Fire the Riverpod connection handler
       final success = await ref.read(connectivityProvider.notifier).connectToDevice(
             widget.deviceName,
-            simulateFailure: widget.simulateFailure,
           );
 
       if (!mounted) return;

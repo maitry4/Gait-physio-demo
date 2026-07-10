@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gait_physiotherapy_demo/core/database/database_service.dart';
+import 'package:gait_physiotherapy_demo/core/services/sqlite_service.dart';
 import 'package:gait_physiotherapy_demo/features/session/domain/entities/session_entity.dart';
 
 class ViewSessionState {
@@ -44,7 +44,43 @@ class ViewSessionNotifier extends Notifier<ViewSessionState> {
   Future<void> loadSessionsForUser(String userId) async {
     state = state.copyWith(isLoading: true, errorMessage: () => null);
     try {
-      final list = await DatabaseService.instance.getSessionsForUser(userId);
+      final db = await SQLiteService.database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'sessions',
+        where: 'patient_id = ?',
+        whereArgs: [userId],
+        orderBy: 'date DESC',
+      );
+
+      final list = maps.map((map) {
+        final double durationSec = (map['duration'] as num).toDouble();
+        final int min = durationSec ~/ 60;
+        final int sec = (durationSec % 60).toInt();
+        final durationStr = '${min.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}';
+
+        final stancePct = (map['stance_pct'] as num).toDouble();
+        final swingPct = (map['swing_pct'] as num).toDouble();
+
+        return SessionModel(
+          id: map['id'] as String,
+          userId: map['patient_id'] as String,
+          date: map['date'] as String,
+          duration: durationStr,
+          label: '${map['leg']} Leg',
+          score: ((map['movement_smoothness_sparc'] as num).toDouble() * -10).toInt().clamp(0, 100),
+          strideLength: (map['avg_step_time'] as num).toDouble() * (map['avg_gait_speed'] as num).toDouble(),
+          cadence: (map['avg_cadence'] as num).toInt(),
+          balance: 50,
+          symmetry: 80,
+          stancePhase: stancePct,
+          swingPhase: swingPct,
+          doubleSupport: 0.0,
+          notes: '',
+          rawWaveform: [],
+          slmInterpretation: map['slm_insights'] as String? ?? '',
+        );
+      }).toList();
+
       state = state.copyWith(userSessions: list, isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: () => 'Failed to load sessions: $e');
@@ -60,7 +96,6 @@ class ViewSessionNotifier extends Notifier<ViewSessionState> {
     );
 
     await Future.delayed(const Duration(seconds: 1));
-
 
     state = state.copyWith(syncStatusMessage: 'Requesting raw data files from SD card...');
     await Future.delayed(const Duration(seconds: 1));
@@ -79,8 +114,8 @@ class ViewSessionNotifier extends Notifier<ViewSessionState> {
       cadence: 104,
       balance: 48,
       symmetry: 86,
-      stancePhase: 0.63,
-      swingPhase: 0.37,
+      stancePhase: 60.0,
+      swingPhase: 40.0,
       doubleSupport: 0.24,
       notes: 'Pulled directly from wearable SD card log recovery module.',
       rawWaveform: rawWf,
@@ -88,7 +123,28 @@ class ViewSessionNotifier extends Notifier<ViewSessionState> {
     );
 
     try {
-      await DatabaseService.instance.insertSession(syncSession);
+      final db = await SQLiteService.database;
+      await db.insert(
+        'sessions',
+        {
+          'id': syncSession.id,
+          'device_id': '1',
+          'patient_id': syncSession.userId,
+          'leg': 'LEFT',
+          'date': syncSession.date,
+          'start_time': DateTime.now().toIso8601String(),
+          'end_time': DateTime.now().toIso8601String(),
+          'duration': 105.0,
+          'steps_counted': 100,
+          'avg_cadence': syncSession.cadence,
+          'movement_smoothness_sparc': -4.5,
+          'stance_pct': syncSession.stancePhase,
+          'swing_pct': syncSession.swingPhase,
+          'avg_step_time': 1.0,
+          'avg_gait_speed': 1.18,
+          'slm_insights': syncSession.slmInterpretation,
+        },
+      );
       await loadSessionsForUser(userId);
       state = state.copyWith(
         isSyncingFromDevice: false,

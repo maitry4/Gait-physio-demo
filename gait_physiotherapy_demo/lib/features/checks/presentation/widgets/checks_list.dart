@@ -1,3 +1,10 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gait_physiotherapy_demo/core/router/app_routes.dart';
+import 'package:gait_physiotherapy_demo/features/checks/presentation/provider/check_provider.dart';
+import 'package:gait_physiotherapy_demo/features/checks/presentation/widgets/check_list_item.dart';
+import 'package:go_router/go_router.dart';
+
 class ChecksList extends ConsumerWidget {
   final CheckState checkState;
 
@@ -13,7 +20,7 @@ class ChecksList extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _CheckListItem(
+                  CheckListItem(
                     title: 'Hotspot Credentials',
                     subtitle: 'Secure Storage Key Check',
                     status: checkState.storageCheck,
@@ -24,7 +31,7 @@ class ChecksList extends ConsumerWidget {
                     },
                   ),
                   const SizedBox(height: 16),
-                  _CheckListItem(
+                  CheckListItem(
                     title: 'SLM Preferences',
                     subtitle: 'Local Hive DB State',
                     status: checkState.hiveCheck,
@@ -35,7 +42,7 @@ class ChecksList extends ConsumerWidget {
                     },
                   ),
                   const SizedBox(height: 16),
-                  _CheckListItem(
+                  CheckListItem(
                     title: 'Hardware Validation',
                     subtitle: 'Bluetooth & Mobile AP',
                     status: checkState.hardwareCheck,

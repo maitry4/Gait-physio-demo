@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gait_physiotherapy_demo/core/router/app_routes.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gait_physiotherapy_demo/core/themes/app_colors.dart';
 import 'package:gait_physiotherapy_demo/core/router/app_router.dart';
 import 'package:gait_physiotherapy_demo/features/checks/presentation/provider/check_provider.dart';
 
-class HomePageChecks extends ConsumerStatefulWidget {
-  const HomePageChecks({super.key});
+class EnvironmentChecks extends ConsumerStatefulWidget {
+  const EnvironmentChecks({super.key});
 
   @override
-  ConsumerState<HomePageChecks> createState() => _HomePageChecksState();
+  ConsumerState<EnvironmentChecks> createState() => _EnvironmentChecksState();
 }
 
-class _HomePageChecksState extends ConsumerState<HomePageChecks> {
+class _EnvironmentChecksState extends ConsumerState<EnvironmentChecks> {
   @override
   Widget build(BuildContext context) {
     final checkState = ref.watch(checkProvider);

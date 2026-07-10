@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gait_physiotherapy_demo/core/router/app_routes.dart';
 import 'package:gait_physiotherapy_demo/core/themes/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -169,6 +170,7 @@ class _Screen2DeviceListState extends ConsumerState<Screen2DeviceList> {
                           AppRoutes.connecting,
                           extra: {
                             'deviceName': chosenDevice['name'],
+                            'deviceId': chosenDevice['id'],
                           },
                         );
                       }

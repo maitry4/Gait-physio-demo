@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:gait_physiotherapy_demo/core/router/app_routes.dart';
 import 'package:gait_physiotherapy_demo/core/themes/app_colors.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'package:fl_chart/fl_chart.dart';
 import 'package:gait_physiotherapy_demo/core/router/app_router.dart';
 import 'package:gait_physiotherapy_demo/core/widgets/metric_card.dart';
 import 'package:gait_physiotherapy_demo/features/view_session/presentation/widgets/phase_bar.dart';
@@ -212,15 +214,39 @@ class _Screen613SessionAnalysisState extends State<Screen613SessionAnalysis> {
                                 ),
                               ),
                               const SizedBox(height: 6),
-                              Text(
-                                slmText,
-                                style: const TextStyle(
-                                  color: AppColors.navy,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.5,
+                              if (slmText.isEmpty)
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'No summary for this session',
+                                      style: TextStyle(
+                                        color: AppColors.navy,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () {},
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.secondary,
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        minimumSize: Size.zero,
+                                      ),
+                                      child: const Text('Generate', style: TextStyle(fontSize: 11, color: Colors.white)),
+                                    ),
+                                  ],
+                                )
+                              else
+                                Text(
+                                  slmText,
+                                  style: const TextStyle(
+                                    color: AppColors.navy,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.5,
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         ),
@@ -320,23 +346,71 @@ class _Screen613SessionAnalysisState extends State<Screen613SessionAnalysis> {
                         fontWeight: FontWeight.w700,
                         fontSize: 16,
                       )),
-                  const SizedBox(height: 14),
-                  PhaseBar(
-                    label: 'Stance Phase',
-                    value: widget.session['stance_phase'] as double,
-                    color: AppColors.secondary,
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    height: 120,
+                    child: BarChart(
+                      BarChartData(
+                        alignment: BarChartAlignment.center,
+                        barTouchData: BarTouchData(enabled: false),
+                        titlesData: FlTitlesData(
+                          show: true,
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              getTitlesWidget: (double value, TitleMeta meta) {
+                                return Text('${value.toInt()}%', style: const TextStyle(fontSize: 10));
+                              },
+                              interval: 20,
+                              reservedSize: 22,
+                            ),
+                          ),
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              getTitlesWidget: (double value, TitleMeta meta) {
+                                return const Text('Average Gait Cycle', style: TextStyle(fontSize: 10));
+                              },
+                              reservedSize: 110,
+                            ),
+                          ),
+                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        ),
+                        gridData: const FlGridData(show: false),
+                        borderData: FlBorderData(show: false),
+                        maxY: 100,
+                        barGroups: [
+                          BarChartGroupData(
+                            x: 0,
+                            barRods: [
+                              BarChartRodData(
+                                toY: (widget.session['stance_phase'] as double) + (widget.session['swing_phase'] as double),
+                                width: 30,
+                                borderRadius: BorderRadius.zero,
+                                rodStackItems: [
+                                  BarChartRodStackItem(0, widget.session['stance_phase'] as double, Colors.blue[700]!),
+                                  BarChartRodStackItem(widget.session['stance_phase'] as double, (widget.session['stance_phase'] as double) + (widget.session['swing_phase'] as double), Colors.lightBlue),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 10),
-                  PhaseBar(
-                    label: 'Swing Phase',
-                    value: widget.session['swing_phase'] as double,
-                    color: AppColors.primary,
-                  ),
-                  const SizedBox(height: 10),
-                  PhaseBar(
-                    label: 'Double Support',
-                    value: widget.session['double_support'] as double,
-                    color: AppColors.success,
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(width: 12, height: 12, color: Colors.blue[700]),
+                      const SizedBox(width: 6),
+                      Text('Stance Phase ${(widget.session['stance_phase'] as double).toStringAsFixed(1)}%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 20),
+                      Container(width: 12, height: 12, color: Colors.lightBlue),
+                      const SizedBox(width: 6),
+                      Text('Swing Phase ${(widget.session['swing_phase'] as double).toStringAsFixed(1)}%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    ],
                   ),
 
                   const SizedBox(height: 24),

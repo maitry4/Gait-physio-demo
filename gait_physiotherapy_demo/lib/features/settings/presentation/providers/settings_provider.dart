@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gait_physiotherapy_demo/core/services/hive_service.dart';
+import 'package:gait_physiotherapy_demo/core/services/sqlite_service.dart';
 
 class SettingsState {
   final String slmPreference;
@@ -55,6 +56,14 @@ class SettingsNotifier extends Notifier<SettingsState> {
 
   void discardChanges() {
     state = _savedState;
+  }
+
+  Future<void> importData() async {
+    await SQLiteService.importDatabase();
+  }
+
+  Future<void> createTestData() async {
+    await SQLiteService.createTestData();
   }
 }
 

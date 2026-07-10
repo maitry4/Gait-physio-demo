@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:gait_physiotherapy_demo/core/router/app_routes.dart';
 import 'package:gait_physiotherapy_demo/core/themes/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gait_physiotherapy_demo/core/router/app_router.dart';
+import 'package:gait_physiotherapy_demo/features/connectivity/presentation/providers/connectivity_provider.dart';
+import 'package:gait_physiotherapy_demo/features/user_management/domain/entities/user_entity.dart';
 import 'package:gait_physiotherapy_demo/features/user_management/presentation/providers/user_provider.dart';
 import 'package:gait_physiotherapy_demo/features/user_management/presentation/widgets/user_tile.dart';
 import 'package:gait_physiotherapy_demo/features/view_session/presentation/providers/view_session_provider.dart';
@@ -19,7 +22,30 @@ class Screen51SelectUser extends ConsumerStatefulWidget {
 }
 
 class _Screen51SelectUserState extends ConsumerState<Screen51SelectUser> {
+  List<UserModel>? _filteredUsers;
+  bool _isLoadingFiltered = false;
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.mode == SelectUserMode.viewSession) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadFilteredUsers();
+      });
+    }
+  }
+
+  Future<void> _loadFilteredUsers() async {
+    setState(() => _isLoadingFiltered = true);
+    final deviceId = ref.read(connectivityProvider).connectedDeviceId ?? '1';
+    final users = await ref.read(userProvider.notifier).getUsersForDevice(deviceId);
+    if (mounted) {
+      setState(() {
+        _filteredUsers = users;
+        _isLoadingFiltered = false;
+      });
+    }
+  }
 
   void _onUserSelected(BuildContext context, WidgetRef ref, dynamic user) {
     ref.read(userProvider.notifier).selectUser(user);
@@ -81,6 +107,14 @@ class _Screen51SelectUserState extends ConsumerState<Screen51SelectUser> {
     final userState = ref.watch(userProvider);
     final sessionState = ref.watch(viewSessionProvider);
     final activeUser = userState.selectedUser;
+
+    final displayedUsers = widget.mode == SelectUserMode.viewSession
+        ? (_filteredUsers ?? [])
+        : userState.users;
+        
+    final isLoading = widget.mode == SelectUserMode.viewSession 
+        ? _isLoadingFiltered 
+        : userState.isLoading;
 
     return Scaffold(
       body: Column(
@@ -164,7 +198,7 @@ class _Screen51SelectUserState extends ConsumerState<Screen51SelectUser> {
 
           // ── Patients List ─────────────────────────────────────────────
           Expanded(
-            child: userState.isLoading
+            child: isLoading
                 ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
                 : Padding(
                     padding: const EdgeInsets.all(24),
@@ -172,18 +206,22 @@ class _Screen51SelectUserState extends ConsumerState<Screen51SelectUser> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${userState.users.length} patients registered locally',
+                          widget.mode == SelectUserMode.viewSession
+                              ? '${displayedUsers.length} patients found for current device'
+                              : '${displayedUsers.length} patients registered locally',
                           style: TextStyle(
                             color: Colors.black.withOpacity(0.4),
                             fontSize: 13,
                           ),
                         ),
                         const SizedBox(height: 16),
-                        userState.users.isEmpty
+                        displayedUsers.isEmpty
                             ? Expanded(
                                 child: Center(
                                   child: Text(
-                                    'No patients added yet. Add a user from the dashboard menu first.',
+                                    widget.mode == SelectUserMode.viewSession
+                                        ? 'No sessions logged for any patient on this device.'
+                                        : 'No patients added yet. Add a user from the dashboard menu first.',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(color: Colors.black.withOpacity(0.35), height: 1.5),
                                   ),
@@ -191,10 +229,10 @@ class _Screen51SelectUserState extends ConsumerState<Screen51SelectUser> {
                               )
                             : Expanded(
                                 child: ListView.separated(
-                                  itemCount: userState.users.length,
+                                  itemCount: displayedUsers.length,
                                   separatorBuilder: (_, __) => const SizedBox(height: 12),
                                   itemBuilder: (context, index) {
-                                    final u = userState.users[index];
+                                    final u = displayedUsers[index];
                                     final isSelected = activeUser?.id == u.id;
                                     return UserTile(
                                       name: u.name,

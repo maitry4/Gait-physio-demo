@@ -1,3 +1,7 @@
+import 'package:flutter/material.dart';
+import 'package:gait_physiotherapy_demo/core/themes/app_colors.dart';
+import 'package:gait_physiotherapy_demo/features/checks/presentation/provider/check_provider.dart';
+
 class CheckListItem extends StatelessWidget {
   final String title;
   final String subtitle;

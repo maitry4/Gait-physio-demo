@@ -1,3 +1,6 @@
+import 'package:flutter/material.dart';
+import 'package:gait_physiotherapy_demo/core/themes/app_colors.dart';
+
 class ChecksHeader extends StatelessWidget {
   final bool isComplete;
 
@@ -8,7 +11,7 @@ class ChecksHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-     Container(
+     return Container(
               width: double.infinity,
               decoration: const BoxDecoration(
                 color: AppColors.navy,
@@ -29,16 +32,16 @@ class ChecksHeader extends StatelessWidget {
                         color: AppColors.surfaceDark,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: checkState.isComplete 
+                          color: isComplete 
                             ? AppColors.success.withOpacity(0.4)
                             : AppColors.primary.withOpacity(0.2),
                           width: 2,
                         ),
                       ),
                       child: Icon(
-                        checkState.isComplete ? Icons.check_circle : Icons.shield_outlined,
+                        isComplete ? Icons.check_circle : Icons.shield_outlined,
                         size: 60,
-                        color: checkState.isComplete ? AppColors.success : AppColors.primary,
+                        color: isComplete ? AppColors.success : AppColors.primary,
                       ),
                     ),
                     const SizedBox(height: 32),

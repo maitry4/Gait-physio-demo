@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gait_physiotherapy_demo/core/router/app_routes.dart';
 import 'package:gait_physiotherapy_demo/core/themes/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,10 +9,12 @@ import 'package:gait_physiotherapy_demo/features/connectivity/presentation/provi
 
 class Screen3Connecting extends ConsumerStatefulWidget {
   final String deviceName;
+  final String deviceId;
 
   const Screen3Connecting({
     super.key,
     required this.deviceName,
+    required this.deviceId,
   });
 
   @override
@@ -54,6 +57,7 @@ class _Screen3ConnectingState extends ConsumerState<Screen3Connecting>
       // Fire the Riverpod connection handler
       final success = await ref.read(connectivityProvider.notifier).connectToDevice(
             widget.deviceName,
+            widget.deviceId,
           );
 
       if (!mounted) return;

@@ -14,6 +14,7 @@ class ConnectivityState {
   final String password;
   final bool rememberMe;
   final List<Map<String, dynamic>> scannedDevices;
+  final String? connectedDeviceId;
   final String? connectedDeviceName;
   final String? errorMessage;
 
@@ -26,6 +27,7 @@ class ConnectivityState {
     this.rememberMe = false,
     this.scannedDevices = const [],
     this.connectedDeviceName,
+    this.connectedDeviceId,
     this.errorMessage,
   });
 
@@ -38,6 +40,7 @@ class ConnectivityState {
     bool? rememberMe,
     List<Map<String, dynamic>>? scannedDevices,
     String? connectedDeviceName,
+    String? connectedDeviceId,
     String? errorMessage,
   }) {
     return ConnectivityState(
@@ -49,6 +52,7 @@ class ConnectivityState {
       rememberMe: rememberMe ?? this.rememberMe,
       scannedDevices: scannedDevices ?? this.scannedDevices,
       connectedDeviceName: connectedDeviceName ?? this.connectedDeviceName,
+      connectedDeviceId: connectedDeviceId ?? this.connectedDeviceId,
       errorMessage: errorMessage ?? this.errorMessage,
     );
   }
@@ -159,7 +163,7 @@ class ConnectivityNotifier extends Notifier<ConnectivityState> {
     });
   }
 
-  Future<bool> connectToDevice(String deviceName) async {
+  Future<bool> connectToDevice(String deviceName, String deviceId) async {
     state = state.copyWith(status: ConnectivityStatus.connecting, errorMessage: null);
 
     await Future.delayed(const Duration(seconds: 2));
@@ -167,6 +171,7 @@ class ConnectivityNotifier extends Notifier<ConnectivityState> {
     state = state.copyWith(
       status: ConnectivityStatus.connected,
       connectedDeviceName: deviceName,
+      connectedDeviceId: deviceId,
       errorMessage: null,
     );
     return true;
@@ -176,6 +181,7 @@ class ConnectivityNotifier extends Notifier<ConnectivityState> {
     state = state.copyWith(
       status: ConnectivityStatus.disconnected,
       connectedDeviceName: null,
+      connectedDeviceId: null,
       scannedDevices: const [],
     );
   }

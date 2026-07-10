@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gait_physiotherapy_demo/core/router/app_routes.dart';
 import 'package:gait_physiotherapy_demo/features/connectivity/presentation/screens/connecting_screen.dart';
 import 'package:gait_physiotherapy_demo/features/connectivity/presentation/screens/connectivity_screen.dart';
 import 'package:gait_physiotherapy_demo/features/connectivity/presentation/screens/credentials_screen.dart';
 import 'package:gait_physiotherapy_demo/features/connectivity/presentation/screens/device_list_screen.dart';
 import 'package:gait_physiotherapy_demo/features/home/presentation/screens/home_screen.dart';
-import 'package:gait_physiotherapy_demo/features/checks/presentation/home_page_checks.dart';
+import 'package:gait_physiotherapy_demo/features/checks/presentation/environment_checks.dart';
 import 'package:gait_physiotherapy_demo/features/report/presentation/screens/therapist_pdf_screen.dart';
 import 'package:gait_physiotherapy_demo/features/session/domain/entities/session_entity.dart';
 import 'package:gait_physiotherapy_demo/features/session/presentation/screens/analysis_processing_screen.dart';
@@ -20,25 +21,6 @@ import 'package:gait_physiotherapy_demo/features/view_session/presentation/scree
 import 'package:gait_physiotherapy_demo/features/view_session/presentation/screens/session_list_screen.dart';
 import 'package:gait_physiotherapy_demo/features/settings/presentation/settings_page.dart';
 
-abstract final class AppRoutes {
-  static const checks = 'checks';
-  static const credentials = 'credentials';
-  static const connectivity = 'connectivity';
-  static const deviceList = 'deviceList';
-  static const connecting = 'connecting';
-  static const home = 'home';
-  static const selectUser = 'selectUser';
-  static const sessionConfirmation = 'sessionConfirmation';
-  static const liveSession = 'liveSession';
-  static const analysisProcessing = 'analysisProcessing';
-  static const sessionList = 'sessionList';
-  static const overallProgress = 'overallProgress';
-  static const sessionAnalysis = 'sessionAnalysis';
-  static const addUser = 'addUser';
-  static const researchShare = 'researchShare';
-  static const therapistPdf = 'therapistPdf';
-  static const settings = 'settings';
-}
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -50,7 +32,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/checks',
         name: AppRoutes.checks,
-        builder: (context, state) => const HomePageChecks(),
+        builder: (context, state) => const EnvironmentChecks(),
       ),
       GoRoute(
         path: '/credentials',
@@ -74,6 +56,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           final extra = state.extra as Map<String, dynamic>;
           return Screen3Connecting(
             deviceName: extra['deviceName'] as String,
+            deviceId: extra['deviceId'] as String,
           );
         },
       ),

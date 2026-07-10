@@ -1,0 +1,19 @@
+abstract final class AppRoutes {
+  static const checks = 'checks';
+  static const credentials = 'credentials';
+  static const connectivity = 'connectivity';
+  static const deviceList = 'deviceList';
+  static const connecting = 'connecting';
+  static const home = 'home';
+  static const selectUser = 'selectUser';
+  static const sessionConfirmation = 'sessionConfirmation';
+  static const liveSession = 'liveSession';
+  static const analysisProcessing = 'analysisProcessing';
+  static const sessionList = 'sessionList';
+  static const overallProgress = 'overallProgress';
+  static const sessionAnalysis = 'sessionAnalysis';
+  static const addUser = 'addUser';
+  static const researchShare = 'researchShare';
+  static const therapistPdf = 'therapistPdf';
+  static const settings = 'settings';
+}

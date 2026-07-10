@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gait_physiotherapy_demo/features/session/domain/entities/session_entity.dart';
 import 'package:gait_physiotherapy_demo/features/user_management/domain/entities/user_entity.dart';
+import 'package:gait_physiotherapy_demo/features/view_session/presentation/providers/view_session_provider.dart';
 
 class Screen612OverallProgress extends ConsumerWidget {
   final UserModel user;
@@ -15,61 +16,22 @@ class Screen612OverallProgress extends ConsumerWidget {
     required this.sessions,
   });
 
-  Map<String, dynamic> _calculateCentralTendencies() {
-    if (sessions.isEmpty) {
-      return {
-        'avgScore': 0.0,
-        'avgSymmetry': 0.0,
-        'avgCadence': 0.0,
-        'avgStride': 0.0,
-        'slmSummary': 'No clinical sessions logged to model.',
-      };
-    }
-
-    double totalScore = 0;
-    double totalSymmetry = 0;
-    double totalCadence = 0;
-    double totalStride = 0;
-
-    for (var s in sessions) {
-      totalScore += s.score;
-      totalSymmetry += s.symmetry;
-      totalCadence += s.cadence;
-      totalStride += s.strideLength;
-    }
-
-    final scoreAvg = totalScore / sessions.length;
-    final symAvg = totalSymmetry / sessions.length;
-    final cadAvg = totalCadence / sessions.length;
-    final strideAvg = totalStride / sessions.length;
-
-    // Linear regression heuristic representation
-    String slmSummary = '';
-    if (symAvg >= 88) {
-      slmSummary = 'SLM analysis confirms excellent rehabilitation progress. High gait symmetry score of ${symAvg.toStringAsFixed(0)}% indicates recovery.';
-    } else if (symAvg >= 78) {
-      slmSummary = 'SLM analysis: Moderate gait deviation persistent. Target lateral hip flexors to correct -${(50 - (symAvg / 2)).abs().toStringAsFixed(0)}% load variance.';
-    } else {
-      slmSummary = 'SLM warning: Critical asymmetry trend. High joint wear hazard. Prompt therapeutic brace adjustment advised.';
-    }
-
-    return {
-      'avgScore': scoreAvg,
-      'avgSymmetry': symAvg,
-      'avgCadence': cadAvg,
-      'avgStride': strideAvg,
-      'slmSummary': slmSummary,
-    };
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final stats = _calculateCentralTendencies();
-    final double avgScore = stats['avgScore'];
-    final double avgSymmetry = stats['avgSymmetry'];
-    final double avgCadence = stats['avgCadence'];
-    final double avgStride = stats['avgStride'];
-    final String slmSummary = stats['slmSummary'];
+    final insightsAsync = ref.watch(overallInsightsProvider(user.id));
+    final summaryState = ref.watch(patientSummaryProvider(user.id));
+
+    ref.listen<PatientSummaryState>(patientSummaryProvider(user.id), (previous, next) {
+      if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.errorMessage!),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+        ref.read(patientSummaryProvider(user.id).notifier).clearError();
+      }
+    });
 
     return Scaffold(
       body: Column(
@@ -128,114 +90,32 @@ class Screen612OverallProgress extends ConsumerWidget {
 
           // ── Body ──────────────────────────────────────────────────────
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ── SLM Summary Box ──────────────────────────────────────
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary.withOpacity(0.09),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: AppColors.secondary.withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.psychology_outlined, color: AppColors.secondary, size: 24),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'SLM DIAGNOSTIC ESTIMATE',
-                                style: TextStyle(
-                                  color: AppColors.secondary,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 10,
-                                  letterSpacing: 1.0,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                slmSummary,
-                                style: const TextStyle(
-                                  color: AppColors.navy,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+            child: insightsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+              error: (err, stack) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Text(
+                    'Failed to load clinical insights: $err',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
                   ),
+                ),
+              ),
+              data: (insights) {
+                final int totalSessions = insights['total_sessions'] as int? ?? 0;
+                final double avgCadence = insights['avg_cadence'] as double? ?? 0.0;
+                final double avgGaitSpeed = insights['avg_gait_speed'] as double? ?? 0.0;
+                final double avgStepTime = insights['avg_step_time'] as double? ?? 0.0;
+                final double avgStrideLength = insights['avg_stride_length'] as double? ?? 0.0;
+                final double avgStancePct = insights['avg_stance_pct'] as double? ?? 0.0;
+                final double avgSwingPct = insights['avg_swing_pct'] as double? ?? 0.0;
+                final double avgScore = insights['avg_score'] as double? ?? 0.0;
+                final double symmetry = insights['symmetry'] as double? ?? 100.0;
 
-                  const SizedBox(height: 24),
-
-                  // ── Metrics Grid (Central Tendency) ─────────────────────
-                  const Text(
-                    'Central Tendency Statistics',
-                    style: TextStyle(
-                      color: AppColors.navy,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.45,
-                    children: [
-                      _StatCard(
-                        label: 'Mean Symmetry',
-                        value: '${avgSymmetry.toStringAsFixed(1)}%',
-                        icon: Icons.compare_arrows,
-                        color: AppColors.primary,
-                      ),
-                      _StatCard(
-                        label: 'Mean Cadence',
-                        value: '${avgCadence.toStringAsFixed(0)} spm',
-                        icon: Icons.speed,
-                        color: AppColors.secondary,
-                      ),
-                      _StatCard(
-                        label: 'Mean Stride Len',
-                        value: '${avgStride.toStringAsFixed(2)} m',
-                        icon: Icons.straighten,
-                        color: AppColors.success,
-                      ),
-                      _StatCard(
-                        label: 'Mean Score',
-                        value: avgScore.toStringAsFixed(1),
-                        icon: Icons.score_outlined,
-                        color: AppColors.warning,
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // ── Dynamic Trend Visualizer ────────────────────────────
-                  const Text(
-                    'Historical Progress Line',
-                    style: TextStyle(
-                      color: AppColors.navy,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Container(
+                // ── AI Clinical Progression Analysis Card ──────────────────────────────
+                Widget buildAiSummaryCard() {
+                  return Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -255,26 +135,303 @@ class Screen612OverallProgress extends ConsumerWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
-                              'Symmetry Trend % (Sessions order)',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.navy),
+                            const Row(
+                              children: [
+                                Icon(
+                                  Icons.auto_awesome_outlined,
+                                  color: AppColors.primary,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'AI Clinical Progression Analysis',
+                                  style: TextStyle(
+                                    color: AppColors.navy,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
                             ),
-                            Text(
-                              '${sessions.length} sessions logged',
-                              style: TextStyle(color: Colors.black.withOpacity(0.35), fontSize: 11),
+                            if (summaryState.summary != null && !summaryState.isLoading)
+                              IconButton(
+                                icon: const Icon(Icons.refresh, color: AppColors.primary, size: 18),
+                                onPressed: () => ref
+                                    .read(patientSummaryProvider(user.id).notifier)
+                                    .generateSummary(),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        if (summaryState.isLoading)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 24),
+                              child: CircularProgressIndicator(color: AppColors.primary),
+                            ),
+                          )
+                        else if (summaryState.summary == null)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                'No AI progression summary has been generated for this patient yet.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.black.withOpacity(0.4),
+                                  fontSize: 13,
+                                  height: 1.5,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  icon: const Icon(Icons.auto_awesome, size: 18),
+                                  label: const Text('Generate AI Progression Summary'),
+                                  onPressed: () => ref
+                                      .read(patientSummaryProvider(user.id).notifier)
+                                      .generateSummary(),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          Text(
+                            summaryState.summary!,
+                            style: const TextStyle(
+                              color: AppColors.navy,
+                              fontSize: 13,
+                              height: 1.55,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                }
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      buildAiSummaryCard(),
+                      const SizedBox(height: 24),
+
+                      // ── Metrics Grid (Central Tendency) ─────────────────────
+                      const Text(
+                        'Central Tendency Statistics',
+                        style: TextStyle(
+                          color: AppColors.navy,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      GridView.count(
+                        padding: EdgeInsets.zero,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 1.28,
+                        children: [
+                          _StatCard(
+                            label: 'Mean Symmetry',
+                            value: '${symmetry.toStringAsFixed(1)}%',
+                            icon: Icons.compare_arrows,
+                            color: AppColors.primary,
+                          ),
+                          _StatCard(
+                            label: 'Mean Cadence',
+                            value: '${avgCadence.toStringAsFixed(0)} spm',
+                            icon: Icons.speed,
+                            color: AppColors.secondary,
+                          ),
+                          _StatCard(
+                            label: 'Mean Stride Len',
+                            value: '${avgStrideLength.toStringAsFixed(2)} m',
+                            icon: Icons.straighten,
+                            color: AppColors.success,
+                          ),
+                          _StatCard(
+                            label: 'Mean Gait Speed',
+                            value: '${avgGaitSpeed.toStringAsFixed(2)} m/s',
+                            icon: Icons.directions_walk,
+                            color: Colors.teal,
+                          ),
+                          _StatCard(
+                            label: 'Mean Step Time',
+                            value: '${avgStepTime.toStringAsFixed(2)} s',
+                            icon: Icons.timer,
+                            color: Colors.orange,
+                          ),
+                          _StatCard(
+                            label: 'Mean Score',
+                            value: avgScore.toStringAsFixed(1),
+                            icon: Icons.score_outlined,
+                            color: AppColors.warning,
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // ── Stance / Swing Phase Distribution Card ──────────────
+                      const Text(
+                        'Gait Cycle Phase Distribution',
+                        style: TextStyle(
+                          color: AppColors.navy,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 24),
-                        CustomPaint(
-                          size: const Size(double.infinity, 100),
-                          painter: _HistoryTrendPainter(sessions: sessions),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Cycle Breakdown (Averaged)',
+                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.navy),
+                            ),
+                            const SizedBox(height: 16),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: SizedBox(
+                                height: 16,
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: (avgStancePct * 100).round().clamp(1, 9900),
+                                      child: Container(
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: (avgSwingPct * 100).round().clamp(1, 9900),
+                                      child: Container(
+                                        color: AppColors.secondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Stance (${avgStancePct.toStringAsFixed(1)}%)',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.navy),
+                                ),
+                                const SizedBox(width: 20),
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.secondary,
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Swing (${avgSwingPct.toStringAsFixed(1)}%)',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.navy),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // ── Dynamic Trend Visualizer ────────────────────────────
+                      const Text(
+                        'Historical Progress Line',
+                        style: TextStyle(
+                          color: AppColors.navy,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Symmetry Trend % (Sessions order)',
+                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.navy),
+                                ),
+                                Text(
+                                  '${sessions.length} sessions logged',
+                                  style: TextStyle(color: Colors.black.withOpacity(0.35), fontSize: 11),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                            CustomPaint(
+                              size: const Size(double.infinity, 100),
+                              painter: _HistoryTrendPainter(sessions: sessions),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],
@@ -299,7 +456,7 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -315,18 +472,22 @@ class _StatCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(icon, color: color, size: 22),
+          Icon(icon, color: color, size: 20),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 value,
-                style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 16),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 15),
               ),
               const SizedBox(height: 2),
               Text(
                 label,
-                style: TextStyle(color: Colors.black.withOpacity(0.38), fontSize: 11),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Colors.black.withOpacity(0.38), fontSize: 10),
               ),
             ],
           ),

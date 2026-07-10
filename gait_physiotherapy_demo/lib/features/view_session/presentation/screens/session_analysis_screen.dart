@@ -5,9 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
-import 'package:gait_physiotherapy_demo/core/router/app_router.dart';
 import 'package:gait_physiotherapy_demo/core/widgets/metric_card.dart';
-import 'package:gait_physiotherapy_demo/features/view_session/presentation/widgets/phase_bar.dart';
 import 'package:gait_physiotherapy_demo/features/view_session/presentation/widgets/static_waveform_painter.dart';
 
 class Screen613SessionAnalysis extends StatefulWidget {
@@ -71,6 +69,8 @@ class _Screen613SessionAnalysisState extends State<Screen613SessionAnalysis> {
     final score = widget.session['score'] as int;
     final scoreColor = _scoreColor(score);
     final slmText = widget.session['slm_interpretation'] as String;
+    final stancePhase = (widget.session['stance_phase'] as num?)?.toDouble() ?? 0.0;
+    final swingPhase = (widget.session['swing_phase'] as num?)?.toDouble() ?? 0.0;
 
     List<double> rawWf = [];
     try {
@@ -340,77 +340,149 @@ class _Screen613SessionAnalysisState extends State<Screen613SessionAnalysis> {
                   const SizedBox(height: 20),
 
                   // ── Phase Breakdown ─────────────────────────────────
-                  const Text('Gait Phase Breakdown',
-                      style: TextStyle(
-                        color: AppColors.navy,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      )),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    height: 120,
-                    child: BarChart(
-                      BarChartData(
-                        alignment: BarChartAlignment.center,
-                        barTouchData: BarTouchData(enabled: false),
-                        titlesData: FlTitlesData(
-                          show: true,
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (double value, TitleMeta meta) {
-                                return Text('${value.toInt()}%', style: const TextStyle(fontSize: 10));
-                              },
-                              interval: 20,
-                              reservedSize: 22,
-                            ),
-                          ),
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (double value, TitleMeta meta) {
-                                return const Text('Average Gait Cycle', style: TextStyle(fontSize: 10));
-                              },
-                              reservedSize: 110,
-                            ),
-                          ),
-                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        ),
-                        gridData: const FlGridData(show: false),
-                        borderData: FlBorderData(show: false),
-                        maxY: 100,
-                        barGroups: [
-                          BarChartGroupData(
-                            x: 0,
-                            barRods: [
-                              BarChartRodData(
-                                toY: (widget.session['stance_phase'] as double) + (widget.session['swing_phase'] as double),
-                                width: 30,
-                                borderRadius: BorderRadius.zero,
-                                rodStackItems: [
-                                  BarChartRodStackItem(0, widget.session['stance_phase'] as double, Colors.blue[700]!),
-                                  BarChartRodStackItem(widget.session['stance_phase'] as double, (widget.session['stance_phase'] as double) + (widget.session['swing_phase'] as double), Colors.lightBlue),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 14,
+                          offset: const Offset(0, 5),
+                        )
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(width: 12, height: 12, color: Colors.blue[700]),
-                      const SizedBox(width: 6),
-                      Text('Stance Phase ${(widget.session['stance_phase'] as double).toStringAsFixed(1)}%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 20),
-                      Container(width: 12, height: 12, color: Colors.lightBlue),
-                      const SizedBox(width: 6),
-                      Text('Swing Phase ${(widget.session['swing_phase'] as double).toStringAsFixed(1)}%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    ],
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Gait Phase Breakdown',
+                            style: TextStyle(
+                              color: AppColors.navy,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            )),
+                        const SizedBox(height: 4),
+                        Text('Comparison of Stance vs Swing phase percentages',
+                            style: TextStyle(color: Colors.black.withOpacity(0.35), fontSize: 12)),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          height: 150,
+                          child: BarChart(
+                            BarChartData(
+                              alignment: BarChartAlignment.center,
+                              barTouchData: BarTouchData(enabled: false),
+                              titlesData: FlTitlesData(
+                                show: true,
+                                bottomTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    getTitlesWidget: (double value, TitleMeta meta) {
+                                      if (value == 0) {
+                                        return Padding(
+                                          padding: const EdgeInsets.only(top: 8.0),
+                                          child: Text(
+                                            widget.session['label'] ?? 'Gait Cycle',
+                                            style: const TextStyle(
+                                              color: AppColors.navy,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                      return const SizedBox.shrink();
+                                    },
+                                    reservedSize: 28,
+                                  ),
+                                ),
+                                leftTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    getTitlesWidget: (double value, TitleMeta meta) {
+                                      return Text(
+                                        '${value.toInt()}%',
+                                        style: TextStyle(
+                                          color: Colors.black.withOpacity(0.4),
+                                          fontSize: 10,
+                                        ),
+                                      );
+                                    },
+                                    interval: 20,
+                                    reservedSize: 38,
+                                  ),
+                                ),
+                                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              ),
+                              gridData: FlGridData(
+                                show: true,
+                                drawVerticalLine: false,
+                                getDrawingHorizontalLine: (value) {
+                                  return FlLine(
+                                    color: Colors.black.withOpacity(0.06),
+                                    strokeWidth: 1,
+                                    dashArray: [4, 4],
+                                  );
+                                },
+                              ),
+                              borderData: FlBorderData(show: false),
+                              maxY: 100,
+                              barGroups: [
+                                BarChartGroupData(
+                                  x: 0,
+                                  barRods: [
+                                    BarChartRodData(
+                                      toY: stancePhase + swingPhase,
+                                      width: 45,
+                                      borderRadius: BorderRadius.circular(6),
+                                      rodStackItems: [
+                                        BarChartRodStackItem(0, stancePhase, AppColors.primary),
+                                        BarChartRodStackItem(stancePhase, stancePhase + swingPhase, AppColors.secondary),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Stance Phase ${stancePhase.toStringAsFixed(1)}%',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.navy),
+                            ),
+                            const SizedBox(width: 20),
+                            Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: AppColors.secondary,
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Swing Phase ${swingPhase.toStringAsFixed(1)}%',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.navy),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
 
                   const SizedBox(height: 24),

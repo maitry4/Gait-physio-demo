@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:gait_physiotherapy_demo/core/database/database_service.dart';
+import 'package:gait_physiotherapy_demo/core/services/sqlite_service.dart';
 import 'package:gait_physiotherapy_demo/core/services/slm_service.dart';
 import 'package:gait_physiotherapy_demo/features/session/domain/entities/session_entity.dart';
 import 'package:gait_physiotherapy_demo/features/view_session/presentation/providers/view_session_provider.dart';
@@ -243,6 +244,14 @@ class SessionNotifier extends Notifier<SessionState> {
       );
 
       await DatabaseService.instance.insertSession(newSession);
+      
+      // Invalidate patient summary cache in SQLite when a new session is recorded
+      await SQLiteService.invalidatePatientSummary(userId);
+      // Invalidate overall insights to force recalculation of averages
+      ref.invalidate(overallInsightsProvider(userId));
+      // Refresh the patient summary state so the UI prompts to regenerate
+      ref.read(patientSummaryProvider(userId).notifier).loadCachedSummary();
+
       await DatabaseService.instance.clearActiveSession(); // Successfully synced -> Clear active session
       await ref.read(viewSessionProvider.notifier).loadSessionsForUser(userId);
 

@@ -13,9 +13,14 @@ class SQLiteService {
     final path = join(dbPath, _dbName);
     _database = await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await _createTables(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('ALTER TABLE patients ADD COLUMN overall_insights TEXT');
+        }
       },
     );
     return _database!;
@@ -33,7 +38,8 @@ class SQLiteService {
           id TEXT PRIMARY KEY,
           name TEXT NOT NULL,
           age INTEGER NOT NULL,
-          created_at TEXT NOT NULL
+          created_at TEXT NOT NULL,
+          overall_insights TEXT
       )
     ''');
     await db.execute('''
@@ -282,6 +288,122 @@ class SQLiteService {
       swingPct: 44.7,
       avgStepTime: 0.463,
       avgGaitSpeed: 0.976,
+    );
+  }
+
+  static Future<Map<String, dynamic>> getPatientInsights(String patientId) async {
+    final db = await database;
+
+    // 1. Overall averages across all patient sessions
+    final List<Map<String, dynamic>> overallResults = await db.rawQuery('''
+      SELECT 
+        COUNT(*) as total_sessions,
+        AVG(avg_cadence) as avg_cadence,
+        AVG(avg_gait_speed) as avg_gait_speed,
+        AVG(avg_step_time) as avg_step_time,
+        AVG(avg_step_time * avg_gait_speed) as avg_stride_length,
+        AVG(stance_pct) as avg_stance_pct,
+        AVG(swing_pct) as avg_swing_pct,
+        AVG(movement_smoothness_sparc) as avg_sparc
+      FROM sessions
+      WHERE patient_id = ?
+    ''', [patientId]);
+
+    // 2. Leg-specific breakdown for bilateral symmetry comparison
+    final List<Map<String, dynamic>> legResults = await db.rawQuery('''
+      SELECT 
+        leg,
+        COUNT(*) as count,
+        AVG(stance_pct) as avg_stance_pct,
+        AVG(swing_pct) as avg_swing_pct,
+        AVG(avg_cadence) as avg_cadence,
+        AVG(avg_gait_speed) as avg_gait_speed
+      FROM sessions
+      WHERE patient_id = ?
+      GROUP BY leg
+    ''', [patientId]);
+
+    double leftStance = 0.0;
+    double rightStance = 0.0;
+    for (var row in legResults) {
+      final legStr = (row['leg'] as String? ?? '').toUpperCase();
+      if (legStr.startsWith('LEFT')) {
+        leftStance = (row['avg_stance_pct'] as num?)?.toDouble() ?? 0.0;
+      } else if (legStr.startsWith('RIGHT')) {
+        rightStance = (row['avg_stance_pct'] as num?)?.toDouble() ?? 0.0;
+      }
+    }
+
+    // Dynamic symmetry calculation: perfect is 100%, each 1% stance difference reduces it by 5%
+    double symmetry = 100.0;
+    if (leftStance > 0 && rightStance > 0) {
+      symmetry = (100.0 - (leftStance - rightStance).abs() * 5.0).clamp(0.0, 100.0);
+    } else {
+      // Default to 85.0 if only single-sided trials exist
+      symmetry = 85.0;
+    }
+
+    if (overallResults.isEmpty || overallResults.first['total_sessions'] == 0) {
+      return {
+        'total_sessions': 0,
+        'avg_cadence': 0.0,
+        'avg_gait_speed': 0.0,
+        'avg_step_time': 0.0,
+        'avg_stride_length': 0.0,
+        'avg_stance_pct': 0.0,
+        'avg_swing_pct': 0.0,
+        'avg_sparc': 0.0,
+        'avg_score': 0.0,
+        'symmetry': 100.0,
+        'leg_breakdown': <String, Map<String, dynamic>>{},
+      };
+    }
+
+    final row = overallResults.first;
+    final totalSessions = row['total_sessions'] as int? ?? 0;
+    final avgCadence = (row['avg_cadence'] as num?)?.toDouble() ?? 0.0;
+    final avgGaitSpeed = (row['avg_gait_speed'] as num?)?.toDouble() ?? 0.0;
+    final avgStepTime = (row['avg_step_time'] as num?)?.toDouble() ?? 0.0;
+    final avgStrideLength = (row['avg_stride_length'] as num?)?.toDouble() ?? (avgStepTime * avgGaitSpeed);
+    final avgStancePct = (row['avg_stance_pct'] as num?)?.toDouble() ?? 0.0;
+    final avgSwingPct = (row['avg_swing_pct'] as num?)?.toDouble() ?? 0.0;
+    final avgSparc = (row['avg_sparc'] as num?)?.toDouble() ?? 0.0;
+    final avgScore = (avgSparc * -10).clamp(0.0, 100.0);
+
+    final Map<String, Map<String, dynamic>> legBreakdown = {};
+    for (var legRow in legResults) {
+      final leg = legRow['leg'] as String? ?? 'UNKNOWN';
+      legBreakdown[leg] = {
+        'count': legRow['count'] as int? ?? 0,
+        'avg_stance_pct': (legRow['avg_stance_pct'] as num?)?.toDouble() ?? 0.0,
+        'avg_swing_pct': (legRow['avg_swing_pct'] as num?)?.toDouble() ?? 0.0,
+        'avg_cadence': (legRow['avg_cadence'] as num?)?.toDouble() ?? 0.0,
+        'avg_gait_speed': (legRow['avg_gait_speed'] as num?)?.toDouble() ?? 0.0,
+      };
+    }
+
+    return {
+      'total_sessions': totalSessions,
+      'avg_cadence': avgCadence,
+      'avg_gait_speed': avgGaitSpeed,
+      'avg_step_time': avgStepTime,
+      'avg_stride_length': avgStrideLength,
+      'avg_stance_pct': avgStancePct,
+      'avg_swing_pct': avgSwingPct,
+      'avg_sparc': avgSparc,
+      'avg_score': avgScore,
+      'symmetry': symmetry,
+      'leg_breakdown': legBreakdown,
+    };
+  }
+
+  static Future<void> invalidatePatientSummary(String patientId) async {
+    final db = await database;
+    await db.update(
+      'patients',
+      {'overall_insights': null},
+      where: 'id = ?',
+      whereArgs: [patientId],
     );
   }
 }

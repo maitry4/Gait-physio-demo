@@ -1,105 +1,63 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.ticker import ScalarFormatter
+import io
 import skdh as skdh
 from skdh.gait import GaitLumbar
-import os
 
-# =============================================================================
-# 1. DATA LOADING AND PREPROCESSING
-# =============================================================================
-file_path = "E:\\summer_internship\\Subject_Data\\Subject_Data\\Healthy_Subject\\LeftLeg\\final1.txt"
-
-try:
-    df = pd.read_csv(
-        file_path, 
-        skiprows=1, 
-        header=None, 
-        names=['SerialNumber', 'Timestamp', 'x_acc', 'y_acc', 'z_acc'],
-        on_bad_lines='skip'
-    )
-    
-    for col in ['x_acc', 'y_acc', 'z_acc']:
-        df[col] = pd.to_numeric(df[col].astype(str).str.replace('acc:', ''), errors='coerce')
-    
-    df.dropna(inplace=True)
-
-    raw_timestamps = df['Timestamp'].values.astype(float)
-    time_seconds = (raw_timestamps - raw_timestamps[0]) / 1000.0
-    accel = df[['x_acc', 'y_acc', 'z_acc']].values
-    
-    fs = 1.0 / np.mean(np.diff(time_seconds))
-    acc_mag = np.sqrt(np.sum(accel**2, axis=1))
-    
-    print(f"--- Data Loaded Successfully ---")
-    print(f"Sampling Rate: {fs:.2f} Hz | Duration: {time_seconds[-1]:.2f}s")
-
-except Exception as e:
-    print(f"Error: {e}")
-    exit()
-
-# =============================================================================
-# 2. SKDH CLINICAL GAIT ANALYSIS
-# =============================================================================
-gait = GaitLumbar()
-data_dict = {'time': time_seconds, 'accel': accel}
-
-print("\nRunning SKDH Clinical Prediction...")
-
-try:
-    results = gait.predict(**data_dict, height=1.75)
-
-    if results is not None and len(results['step time']) > 0:
-        res_df = pd.DataFrame(results)
+def analyze_gait_data(file_bytes: bytes, height: float = 1.75) -> dict:
+    try:
+        df = pd.read_csv(
+            io.BytesIO(file_bytes), 
+            skiprows=1, 
+            header=None, 
+            names=['SerialNumber', 'Timestamp', 'x_acc', 'y_acc', 'z_acc'],
+            on_bad_lines='skip'
+        )
         
-        # --- EXTENDED METRICS SUMMARY ---
-        avg_stance = res_df['stance time'].mean()
-        avg_swing = res_df['swing time'].mean()
-        avg_stride = res_df['stride time'].mean()
+        for col in ['x_acc', 'y_acc', 'z_acc']:
+            df[col] = pd.to_numeric(df[col].astype(str).str.replace('acc:', ''), errors='coerce')
         
-        stance_pct = (avg_stance / avg_stride) * 100
-        swing_pct = (avg_swing / avg_stride) * 100
+        df.dropna(inplace=True)
 
-        # Prepare summary text
-        summary_lines = [
-            "--- Extended Clinical Results ---",
-            f"Steps Counted: {len(res_df)}",
-            f"Avg Cadence: {res_df['cadence'].mean():.2f} steps/min",
-            f"Movement Smoothness (SPARC): {res_df['stride SPARC'].mean():.3f}",
-            f"Phase Ratio: Stance {stance_pct:.1f}% | Swing {swing_pct:.1f}%",
-            f"Avg Step Time: {res_df['step time'].mean():.3f} s",
-            f"Avg Gait Speed: {res_df['gait speed'].mean():.3f} m/s"
-        ]
+        if df.empty:
+            raise ValueError("Parsed data is empty or invalid format.")
 
-        # Print to console
-        print("\n" + "\n".join(summary_lines))
-
-
-        # =============================================================================
-        # 4. PLOT 2: AVERAGE GAIT CYCLE PHASES (STANCE vs SWING)
-        # =============================================================================
-        plt.figure(figsize=(10, 4))
+        raw_timestamps = df['Timestamp'].values.astype(float)
+        time_seconds = (raw_timestamps - raw_timestamps[0]) / 1000.0
+        accel = df[['x_acc', 'y_acc', 'z_acc']].values
         
-        plt.barh(['Average Gait Cycle'], [stance_pct], color='steelblue', label='Stance Phase')
-        plt.barh(['Average Gait Cycle'], [swing_pct], left=[stance_pct], color='lightskyblue', label='Swing Phase')
-        
-        plt.text(stance_pct/2, 0, f"Stance\n{stance_pct:.1f}%", ha='center', va='center', color='white', fontweight='bold')
-        plt.text(stance_pct + swing_pct/2, 0, f"Swing\n{swing_pct:.1f}%", ha='center', va='center', color='black', fontweight='bold')
+    except Exception as e:
+        raise ValueError(f"Error parsing data file: {e}")
 
-        plt.title('Clinical Gait Cycle Composition', fontsize=16)
-        plt.xlabel('Percentage of Stride (%)')
-        plt.xlim(0, 100)
-        plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.3), ncol=2)
-        plt.tight_layout()
+    gait = GaitLumbar()
+    data_dict = {'time': time_seconds, 'accel': accel}
 
-        plt.show()
+    try:
+        results = gait.predict(**data_dict, height=height)
 
+        if results is not None and len(results.get('step time', [])) > 0:
+            res_df = pd.DataFrame(results)
+            
+            avg_stance = res_df['stance time'].mean()
+            avg_swing = res_df['swing time'].mean()
+            avg_stride = res_df['stride time'].mean()
+            
+            stance_pct = (avg_stance / avg_stride) * 100
+            swing_pct = (avg_swing / avg_stride) * 100
 
-        
-    else:
-        print("\nNo walking bouts detected.")
+            return {
+                "steps_counted": int(len(res_df)),
+                "avg_cadence": float(res_df['cadence'].mean()),
+                "movement_smoothness_sparc": float(res_df['stride SPARC'].mean()),
+                "phase_ratio_stance_pct": float(stance_pct),
+                "phase_ratio_swing_pct": float(swing_pct),
+                "avg_step_time_s": float(res_df['step time'].mean()),
+                "avg_gait_speed_mps": float(res_df['gait speed'].mean())
+            }
+        else:
+            raise ValueError("No walking bouts detected.")
 
-except Exception as e:
-    print(f"An error occurred: {e}")
-
+    except ValueError:
+        raise
+    except Exception as e:
+        raise RuntimeError(f"An error occurred during gait prediction: {e}")

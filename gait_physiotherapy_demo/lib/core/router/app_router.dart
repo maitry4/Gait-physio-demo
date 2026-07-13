@@ -1,25 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gait_physiotherapy_demo/features/checks/presentation/startup_check.dart';
+import 'package:gait_physiotherapy_demo/features/configuration/presentation/pages/credentials_page.dart';
+import 'package:gait_physiotherapy_demo/features/configuration/presentation/pages/device_list_page.dart';
+import 'package:gait_physiotherapy_demo/features/home/presentation/dashboard.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gait_physiotherapy_demo/core/router/app_routes.dart';
-import 'package:gait_physiotherapy_demo/features/connectivity/presentation/screens/connecting_screen.dart';
-import 'package:gait_physiotherapy_demo/features/connectivity/presentation/screens/connectivity_screen.dart';
-import 'package:gait_physiotherapy_demo/features/connectivity/presentation/screens/credentials_screen.dart';
-import 'package:gait_physiotherapy_demo/features/connectivity/presentation/screens/device_list_screen.dart';
-import 'package:gait_physiotherapy_demo/features/home/presentation/screens/home_screen.dart';
-import 'package:gait_physiotherapy_demo/features/checks/presentation/environment_checks.dart';
-import 'package:gait_physiotherapy_demo/features/report/presentation/screens/therapist_pdf_screen.dart';
-import 'package:gait_physiotherapy_demo/features/session/domain/entities/session_entity.dart';
-import 'package:gait_physiotherapy_demo/features/session/presentation/screens/analysis_processing_screen.dart';
-import 'package:gait_physiotherapy_demo/features/session/presentation/screens/live_session_screen.dart';
-import 'package:gait_physiotherapy_demo/features/session/presentation/screens/session_confirmation_screen.dart';
-import 'package:gait_physiotherapy_demo/features/user_management/domain/entities/user_entity.dart';
-import 'package:gait_physiotherapy_demo/features/user_management/presentation/screens/add_user_screen.dart';
-import 'package:gait_physiotherapy_demo/features/user_management/presentation/screens/select_user_screen.dart';
-import 'package:gait_physiotherapy_demo/features/view_session/presentation/screens/overall_progress_screen.dart';
-import 'package:gait_physiotherapy_demo/features/view_session/presentation/screens/session_analysis_screen.dart';
-import 'package:gait_physiotherapy_demo/features/view_session/presentation/screens/session_list_screen.dart';
-import 'package:gait_physiotherapy_demo/features/settings/presentation/settings_page.dart';
+
 
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -32,22 +19,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/checks',
         name: AppRoutes.checks,
-        builder: (context, state) => const EnvironmentChecks(),
+        builder: (context, state) => const StartupCheck(),
       ),
       GoRoute(
         path: '/credentials',
         name: AppRoutes.credentials,
-        builder: (context, state) => const Screen0Credentials(),
-      ),
-      GoRoute(
-        path: '/connectivity',
-        name: AppRoutes.connectivity,
-        builder: (context, state) => const Screen1Connectivity(),
+        builder: (context, state) => const CredentialsPage(),
       ),
       GoRoute(
         path: '/device-list',
         name: AppRoutes.deviceList,
-        builder: (context, state) => const Screen2DeviceList(),
+        builder: (context, state) => const DeviceListPage(),
       ),
       GoRoute(
         path: '/connecting',
@@ -64,10 +46,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/home',
         name: AppRoutes.home,
         builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
-          return Screen4HomeMenu(
-            deviceName: extra?['deviceName'] as String? ?? '',
-          );
+          return DashBoardPage();
         },
       ),
       GoRoute(

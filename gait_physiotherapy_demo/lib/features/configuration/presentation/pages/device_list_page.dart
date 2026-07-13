@@ -1,0 +1,218 @@
+import 'package:flutter/material.dart';
+import 'package:gait_physiotherapy_demo/core/router/app_routes.dart';
+import 'package:gait_physiotherapy_demo/core/themes/app_colors.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gait_physiotherapy_demo/features/configuration/presentation/provider/connectivity_provider.dart';
+import 'package:go_router/go_router.dart';
+import 'package:gait_physiotherapy_demo/features/configuration/presentation/widgets/device_tile.dart';
+
+class DeviceListPage extends ConsumerStatefulWidget {
+  const DeviceListPage({super.key});
+
+  @override
+  ConsumerState<DeviceListPage> createState() => _DeviceListPageState();
+}
+
+class _DeviceListPageState extends ConsumerState<DeviceListPage> {
+  int? _selectedIndex;
+
+
+  @override
+  Widget build(BuildContext context) {
+    final connState = ref.watch(connectivityProvider);
+    final allDevices = [
+      ...connState.dbDevices,
+      ...connState.scannedDevices,
+    ];
+
+    return Scaffold(
+      body: Column(
+        children: [
+          // ── Dark Header ───────────────────────────────────────────────
+          Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: AppColors.navy,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(36),
+                bottomRight: Radius.circular(36),
+              ),
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        GestureDetector(
+                          onTap: () => context.pop(),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.arrow_back_ios_new,
+                                color: Colors.white, size: 18),
+                          ),
+                        ),
+                        // Scanning Indicator
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary.withOpacity(0.18),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            children: [
+                              const PulsingDot(color: AppColors.secondary),
+                              const SizedBox(width: 6),
+                              const Text(
+                                'Scanning...',
+                                style: TextStyle(
+                                  color: AppColors.secondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Available Wearables',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Pair your phone hotspot to the gait detection band.',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.45),
+                        fontSize: 13.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // ── Device List ───────────────────────────────────────────────
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${allDevices.length} gait bands detected',
+                        style: TextStyle(
+                          color: Colors.black.withOpacity(0.4),
+                          fontSize: 13,
+                        ),
+                      ),
+
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  allDevices.isEmpty && connState.status == ConnectivityStatus.scanning
+                      ? const Expanded(
+                          child: Center(
+                            child: CircularProgressIndicator(color: AppColors.primary),
+                          ),
+                        )
+                      : Expanded(
+                          child: ListView.separated(
+                            itemCount: allDevices.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final device = allDevices[index];
+                              final isSelected = _selectedIndex == index;
+                              return DeviceTile(
+                                name: device['name'],
+                                deviceId: device['id'],
+                                signalStrength: device['signal'],
+                                isSelected: isSelected,
+                                onTap: () => setState(() => _selectedIndex = index),
+                              );
+                            },
+                          ),
+                        ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Connect Button ────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+            child: AnimatedOpacity(
+              opacity: _selectedIndex != null ? 1.0 : 0.4,
+              duration: const Duration(milliseconds: 250),
+              child: GestureDetector(
+                onTap: _selectedIndex != null
+                    ? () {
+                        final chosenDevice = allDevices[_selectedIndex!];
+                        context.pushNamed(
+                          AppRoutes.connecting,
+                          extra: {
+                            'deviceName': chosenDevice['name'],
+                            'deviceId': chosenDevice['id'],
+                          },
+                        );
+                      }
+                    : null,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 17),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.35),
+                        blurRadius: 18,
+                        offset: const Offset(0, 7),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.bluetooth_connected, color: Colors.white, size: 20),
+                      SizedBox(width: 10),
+                      Text(
+                        'Authenticate & Connect',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

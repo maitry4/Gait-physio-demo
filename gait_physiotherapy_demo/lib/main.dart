@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gait_physiotherapy_demo/core/router/app_router.dart';
-import 'package:gait_physiotherapy_demo/core/themes/app_theme.dart';
-import 'package:gait_physiotherapy_demo/core/services/hive_service.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await HiveService.init();
+
+void main()  {
   runApp(
     const ProviderScope(
       child: GaitPhysioApp(),
@@ -19,13 +15,13 @@ class GaitPhysioApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final router = ref.watch(routerProvider);
+    // final router = ref.watch(routerProvider);
 
-    return MaterialApp.router(
+    return MaterialApp(
       title: 'Gait Physio',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      routerConfig: router,
+      // theme: AppTheme.light,
+      // routerConfig: router,
     );
   }
 }

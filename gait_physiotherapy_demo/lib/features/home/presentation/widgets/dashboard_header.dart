@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gait_physiotherapy_demo/core/router/app_routes.dart';
+import 'package:gait_physiotherapy_demo/features/configuration/presentation/provider/connectivity_provider.dart';
 import 'package:go_router/go_router.dart';
-
-import 'package:gait_physiotherapy_demo/core/router/app_router.dart';
 import 'package:gait_physiotherapy_demo/core/themes/app_colors.dart';
-import 'package:gait_physiotherapy_demo/features/connectivity/presentation/providers/connectivity_provider.dart';
 
 class DashboardHeader extends ConsumerWidget {
-  final String deviceName;
 
   const DashboardHeader({
     super.key,
-    required this.deviceName,
   });
 
   @override
@@ -50,7 +46,7 @@ class DashboardHeader extends ConsumerWidget {
                   GestureDetector(
                     onTap: () {
                       ref.read(connectivityProvider.notifier).disconnect();
-                      context.goNamed(AppRoutes.credentials);
+                      context.goNamed(AppRoutes.deviceList);
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -122,7 +118,7 @@ class DashboardHeader extends ConsumerWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Paired Device: ${connState.connectedDeviceName ?? (deviceName.isNotEmpty ? deviceName : "None")}',
+                      'Paired Device: ${connState.connectedDeviceName}',
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontSize: 13,

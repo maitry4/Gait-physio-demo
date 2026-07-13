@@ -66,6 +66,11 @@ class SQLiteService {
     ''');
   }
 
+  static Future<List<Map<String, dynamic>>> getDevices() async {
+    final db = await database;
+    return await db.query('devices');
+  }
+
   static Future<void> importDatabase() async {
     FilePickerResult? result = await FilePicker.pickFiles(
       type: FileType.any,
@@ -157,6 +162,7 @@ class SQLiteService {
       required double swingPct,
       required double avgStepTime,
       required double avgGaitSpeed,
+      required String slm_insights,
     }) async {
       sessionCounter++;
       final start = now.subtract(Duration(minutes: sessionCounter * 5));
@@ -180,7 +186,7 @@ class SQLiteService {
           'swing_pct': swingPct,
           'avg_step_time': avgStepTime,
           'avg_gait_speed': avgGaitSpeed,
-          'slm_insights': null,
+          'slm_insights': slm_insights,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
@@ -197,6 +203,7 @@ class SQLiteService {
       swingPct: 37.8,
       avgStepTime: 1.047,
       avgGaitSpeed: 1.227,
+      slm_insights:"Based on the provided gait metrics, here's a 2-sentence clinical takeaway:\nThis patient's gait is characterized as having a relatively high cadence and average gait speed, indicating good mobility and potential for quick recovery. However, the negative movement smoothness score suggests that the patient may experience some gait instability, which warrants further assessment and potential interventions to improve gait quality.",
     );
 
     await insertSession(
@@ -210,6 +217,7 @@ class SQLiteService {
       swingPct: 39.5,
       avgStepTime: 0.669,
       avgGaitSpeed: 1.680,
+      slm_insights:"Based on the provided gait metrics, here's a 2-sentence clinical takeaway:\n\nThe patient demonstrated a relatively normal gait speed (1.68 m/s) but with slightly reduced movement smoothness (-4.61), indicating potential issues with balance or coordination that may require further assessment and intervention. Additionally, the patient's cadence (98 steps/min) and step time (0.67 seconds) suggest a relatively normal gait pattern, but further analysis of the patient's overall gait mechanics is necessary to confirm these findings.",
     );
 
     await insertSession(
@@ -223,6 +231,7 @@ class SQLiteService {
       swingPct: 31.7,
       avgStepTime: 1.171,
       avgGaitSpeed: 0.889,
+      slm_insights:"Based on the provided gait metrics, here's a 2-sentence clinical takeaway:\n\nThe patient's gait appears to be relatively smooth, with a high average cadence of 51.29 steps per minute, suggesting a good level of mobility and muscle strength. However, the negative movement smoothness (SPARC) value (-4.31) indicates a slight deviation from a typical, symmetrical gait pattern, which may warrant further assessment to identify potential underlying issues.",
     );
 
     await insertSession(
@@ -236,6 +245,7 @@ class SQLiteService {
       swingPct: 31.6,
       avgStepTime: 1.262,
       avgGaitSpeed: 0.684,
+      slm_insights:"Based on the provided gait metrics, here's a 2-sentence clinical takeaway:\n\nThe patient demonstrates a relatively normal gait pattern with a moderate cadence of 47.6 steps per minute, indicating a potential need for further assessment to optimize their gait efficiency. However, the slightly negative movement smoothness (SPARC) score (-3.74) suggests some degree of gait irregularity or asymmetry that warrants further investigation and potentially targeted interventions.",
     );
 
     await insertSession(
@@ -249,6 +259,7 @@ class SQLiteService {
       swingPct: 30.8,
       avgStepTime: 1.145,
       avgGaitSpeed: 0.749,
+      slm_insights:"Based on the provided gait metrics, here's a 2-sentence clinical takeaway:\n\nThe patient demonstrated a slightly slower gait speed (0.75 mps) and reduced movement smoothness (-3.87), indicating potential gait instability or difficulty with locomotion. Further analysis of the gait pattern, including the relatively high stance phase ratio (69.43%), may be necessary to identify specific areas of concern and develop targeted interventions.",
     );
 
     await insertSession(
@@ -262,6 +273,7 @@ class SQLiteService {
       swingPct: 37.4,
       avgStepTime: 0.349,
       avgGaitSpeed: 1.623,
+      slm_insights:"Based on the provided gait metrics, here's a 2-sentence clinical takeaway:\n\nThe patient's average gait speed is within a relatively normal range (1.6231598425711153 mps), indicating some level of functional mobility, but their movement smoothness is slightly impaired (-2.265772349226957), suggesting the need for further evaluation of their gait patterns and potential interventions to improve coordination and stability.",
     );
 
     await insertSession(
@@ -275,6 +287,7 @@ class SQLiteService {
       swingPct: 46.1,
       avgStepTime: 0.448,
       avgGaitSpeed: 1.595,
+      slm_insights:"Based on the provided gait metrics, here's a 2-sentence clinical takeaway:\n\nThe patient demonstrated a relatively normal gait pattern with a moderate cadence of 178 steps per minute, but exhibited slightly reduced movement smoothness, suggesting potential issues with motor control or coordination. Further assessment is needed to determine the underlying cause of this finding, but it may warrant consideration in the patient's rehabilitation plan.",
     );
 
     await insertSession(
@@ -288,6 +301,7 @@ class SQLiteService {
       swingPct: 44.7,
       avgStepTime: 0.463,
       avgGaitSpeed: 0.976,
+      slm_insights:"Based on the provided gait metrics, here's a 2-sentence clinical takeaway:\n\nThe patient demonstrated a relatively fast average gait speed of 0.98 meters per second, suggesting potential mobility and strength, but may benefit from further analysis to assess overall gait efficiency and stability. The negative movement smoothness score (-2.23) indicates some level of gait irregularity or asymmetry, which warrants further examination to determine its impact on the patient's overall mobility and potential risk for falls.",
     );
   }
 

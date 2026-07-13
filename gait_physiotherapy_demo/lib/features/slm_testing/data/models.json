@@ -1,0 +1,24 @@
+{
+    "models": [
+        {
+            "id": "gemma4",
+            "name": "Gemma 4 E4B",
+            "provider": "Hugging Face",
+            "repo": "ggml-org/gemma-4-E4B-it-GGUF",
+            "filename": "gemma-4-E4B-it-Q4_K_M.gguf",
+            "quantization": "Q4_K_M",
+            "runtime": "llama.cpp",
+            "recommendedRamGB": 8
+        },
+        {
+            "id": "phi4-mini",
+            "name": "Phi-4 Mini",
+            "provider": "Hugging Face",
+            "repo": "unsloth/Phi-4-mini-instruct-GGUF",
+            "filename": "Phi-4-mini-instruct-Q4_K_M.gguf",
+            "quantization": "Q4_K_M",
+            "runtime": "llama.cpp",
+            "recommendedRamGB": 8
+        }
+    ]
+}

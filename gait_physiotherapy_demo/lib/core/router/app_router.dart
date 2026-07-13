@@ -20,7 +20,7 @@ import 'package:gait_physiotherapy_demo/features/view_session/presentation/scree
 import 'package:gait_physiotherapy_demo/features/view_session/presentation/screens/session_analysis_screen.dart';
 import 'package:gait_physiotherapy_demo/features/view_session/presentation/screens/session_list_screen.dart';
 import 'package:gait_physiotherapy_demo/features/settings/presentation/settings_page.dart';
-
+import 'package:gait_physiotherapy_demo/features/slm_testing/presentation/slm_test.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -157,6 +157,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.settings,
         builder: (context, state) => const SettingsPage(),
       ),
+      GoRoute(
+  path: '/slm-benchmark',
+  name: AppRoutes.slmBenchmark,
+  builder: (context, state) => const SlmTestScreen(),
+),
     ],
   );
 });

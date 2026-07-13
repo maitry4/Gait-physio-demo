@@ -171,7 +171,7 @@ class PdfService {
                     height: 14,
                     color: PdfColors.indigo800,
                     child: pw.Center(
-                      child: pw.Text('Stance Phase (${avgStancePct.toStringAsFixed(1)}%)', style: const pw.TextStyle(color: PdfColors.white, fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                      child: pw.Text('Stance Phase (${avgStancePct.toStringAsFixed(1)}%)', style:  pw.TextStyle(color: PdfColors.white, fontSize: 8, fontWeight: pw.FontWeight.bold)),
                     ),
                   ),
                 ),
@@ -181,7 +181,7 @@ class PdfService {
                     height: 14,
                     color: PdfColors.purple800,
                     child: pw.Center(
-                      child: pw.Text('Swing Phase (${avgSwingPct.toStringAsFixed(1)}%)', style: const pw.TextStyle(color: PdfColors.white, fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                      child: pw.Text('Swing Phase (${avgSwingPct.toStringAsFixed(1)}%)', style:  pw.TextStyle(color: PdfColors.white, fontSize: 8, fontWeight: pw.FontWeight.bold)),
                     ),
                   ),
                 ),

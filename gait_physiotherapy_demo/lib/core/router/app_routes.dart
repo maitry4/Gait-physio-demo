@@ -16,4 +16,5 @@ abstract final class AppRoutes {
   static const researchShare = 'researchShare';
   static const therapistPdf = 'therapistPdf';
   static const settings = 'settings';
+  static const String slmBenchmark = 'slmBenchmark';
 }

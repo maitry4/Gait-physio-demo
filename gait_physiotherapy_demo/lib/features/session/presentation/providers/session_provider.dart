@@ -60,7 +60,7 @@ class SessionNotifier extends Notifier<SessionState> {
   Timer? _recordTimer;
   Timer? _waveformTimer;
   final _uuid = const Uuid();
-  final _slmService = SlmService();
+  final _slmService = SLMService();
 
   @override
   SessionState build() {

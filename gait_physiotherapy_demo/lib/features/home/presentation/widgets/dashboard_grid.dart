@@ -257,6 +257,14 @@ class DashboardGrid extends StatelessWidget {
                   AppRoutes.therapistPdf,
                 ),
               ),
+              GridCard(
+                title: 'SLM Benchmark',
+                icon: Icons.speed_outlined,
+                color: AppColors.secondary,
+                onTap: () => context.pushNamed(
+                  AppRoutes.slmBenchmark,
+                ),
+              ),
             ],
           ),
         ],

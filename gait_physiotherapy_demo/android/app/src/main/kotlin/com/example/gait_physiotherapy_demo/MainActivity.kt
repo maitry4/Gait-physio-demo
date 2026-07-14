@@ -2,6 +2,7 @@ package com.example.gait_physiotherapy_demo
 
 import android.os.Debug
 import android.os.Process
+import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -10,6 +11,17 @@ import java.io.RandomAccessFile
 class MainActivity : FlutterActivity() {
 
     private val CHANNEL = "com.example.gait_physiotherapy_demo/system_stats"
+    private val SLM_CHANNEL = "com.example.gait_physiotherapy_demo/slm_inference"
+
+    companion object {
+        init {
+            System.loadLibrary("llama_jni")
+        }
+    }
+
+    private external fun nativeLoadModel(modelPath: String): Boolean
+    private external fun nativeGenerate(prompt: String): String
+    private external fun nativeUnloadModel()
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -19,6 +31,62 @@ class MainActivity : FlutterActivity() {
                 when (call.method) {
                     "getMemoryUsageMB" -> result.success(getMemoryUsageMB())
                     "getCpuUsagePercent" -> result.success(getCpuUsagePercent())
+                    else -> result.notImplemented()
+                }
+            }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SLM_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "loadModel" -> {
+                        val path = call.argument<String>("path")
+                        if (path != null) {
+                            Thread {
+                                val success = nativeLoadModel(path)
+                                runOnUiThread {
+                                    if (success) {
+                                        result.success(true)
+                                    } else {
+                                        result.error("LOAD_FAILED", "Failed to load model", null)
+                                    }
+                                }
+                            }.start()
+                        } else {
+                            result.error("INVALID_ARGUMENT", "Path is null", null)
+                        }
+                    }
+                    "generate" -> {
+                        val prompt = call.argument<String>("prompt")
+                        if (prompt != null) {
+                            Thread {
+                                val output = nativeGenerate(prompt)
+                                runOnUiThread {
+                                    result.success(output)
+                                }
+                            }.start()
+                        } else {
+                            result.error("INVALID_ARGUMENT", "Prompt is null", null)
+                        }
+                    }
+                    "unloadModel" -> {
+                        Thread {
+                            nativeUnloadModel()
+                            runOnUiThread {
+                                result.success(true)
+                            }
+                        }.start()
+                    }
+                    "keepScreenOn" -> {
+                        val keep = call.argument<Boolean>("keep") ?: false
+                        runOnUiThread {
+                            if (keep) {
+                                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                            } else {
+                                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                            }
+                            result.success(true)
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }

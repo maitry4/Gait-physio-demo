@@ -54,9 +54,11 @@ class SlmTestScreen extends ConsumerWidget {
                       (m) => DropdownMenuItem(value: m, child: Text(m.name)),
                     )
                     .toList(),
-                onChanged: (m) {
-                  if (m != null) notifier.selectModel(m);
-                },
+                onChanged: state.isRunning || state.isDownloading
+                    ? null
+                    : (m) {
+                        if (m != null) notifier.selectModel(m);
+                      },
               ),
 
             const SizedBox(height: 20),
@@ -71,15 +73,69 @@ class SlmTestScreen extends ConsumerWidget {
                 return RadioListTile<SlmTestType>(
                   value: type,
                   groupValue: state.testType,
-                  onChanged: (v) {
-                    if (v != null) notifier.selectTestType(v);
-                  },
+                  onChanged: state.isRunning || state.isDownloading
+                      ? null
+                      : (v) {
+                          if (v != null) notifier.selectTestType(v);
+                        },
                   title: Text(type.label),
                   contentPadding: EdgeInsets.zero,
                   dense: true,
                 );
               }).toList(),
             ),
+
+            if (state.isDownloading) ...[
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Downloading Model...',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Text(
+                          state.downloadProgress != null
+                              ? '${(state.downloadProgress! * 100).toStringAsFixed(1)}%'
+                              : 'Connecting...',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    LinearProgressIndicator(
+                      value: state.downloadProgress,
+                      backgroundColor: Colors.grey.shade200,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'This might take a few minutes for larger models (2GB - 5GB+). Please do not close the app.',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             const SizedBox(height: 20),
 
@@ -94,22 +150,27 @@ class SlmTestScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: state.isRunning || state.selectedModel == null
+                onPressed: state.isRunning || state.isDownloading || state.selectedModel == null
                     ? null
                     : notifier.runBenchmark,
-                child: state.isRunning
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Run Benchmark',
+                child: state.isDownloading
+                    ? const Text(
+                        'Downloading Model...',
                         style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
+                      )
+                    : state.isRunning
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Run Benchmark',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
               ),
             ),
 

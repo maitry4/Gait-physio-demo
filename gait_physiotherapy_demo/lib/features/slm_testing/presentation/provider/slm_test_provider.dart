@@ -6,6 +6,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:gait_physiotherapy_demo/core/services/native_service.dart';
 
 import 'package:gait_physiotherapy_demo/core/services/sqlite_service.dart';
@@ -23,6 +24,8 @@ class SlmTestState {
   final bool isRunning;
   final String? error;
   final List<BenchmarkResult> results;
+  final bool isDownloading;
+  final double? downloadProgress;
 
   const SlmTestState({
     this.models = const [],
@@ -32,6 +35,8 @@ class SlmTestState {
     this.isRunning = false,
     this.error,
     this.results = const [],
+    this.isDownloading = false,
+    this.downloadProgress,
   });
 
   SlmTestState copyWith({
@@ -43,6 +48,9 @@ class SlmTestState {
     String? error,
     bool clearError = false,
     List<BenchmarkResult>? results,
+    bool? isDownloading,
+    double? downloadProgress,
+    bool clearDownloadProgress = false,
   }) {
     return SlmTestState(
       models: models ?? this.models,
@@ -52,6 +60,8 @@ class SlmTestState {
       isRunning: isRunning ?? this.isRunning,
       error: clearError ? null : (error ?? this.error),
       results: results ?? this.results,
+      isDownloading: isDownloading ?? this.isDownloading,
+      downloadProgress: clearDownloadProgress ? null : (downloadProgress ?? this.downloadProgress),
     );
   }
 }
@@ -104,11 +114,62 @@ class SlmTestNotifier extends StateNotifier<SlmTestState> {
   /// and test type, and appends the result to [state.results].
   Future<void> runBenchmark() async {
     final model = state.selectedModel;
-    if (model == null || state.isRunning) return;
+    if (model == null || state.isRunning || state.isDownloading) return;
 
     state = state.copyWith(isRunning: true, clearError: true);
 
     try {
+      await SLMNativeBridge.keepScreenOn(true); // Keep screen awake during download/run
+
+      final docDir = await getApplicationDocumentsDirectory();
+      final modelFile = File('${docDir.path}/${model.filename}');
+      final tempFile = File('${docDir.path}/${model.filename}.part');
+      
+      bool exists = await modelFile.exists();
+      if (exists) {
+        // Auto-heal: If the file is smaller than 1 GB, it is corrupt/incomplete
+        final fileSize = await modelFile.length();
+        if (fileSize < 1000 * 1024 * 1024) {
+          await modelFile.delete();
+          exists = false;
+        }
+      }
+
+      if (!exists) {
+        final registryEntry = modelsRegistry.firstWhere(
+          (e) => e.filename == model.filename || e.name == model.name,
+          orElse: () => throw Exception('Model not found in registry'),
+        );
+
+        state = state.copyWith(isDownloading: true, downloadProgress: 0.0);
+        try {
+          if (await tempFile.exists()) {
+            await tempFile.delete();
+          }
+
+          await SLMService.downloadModel(
+            url: registryEntry.url,
+            savePath: tempFile.path,
+            onProgress: (progress) {
+              state = state.copyWith(downloadProgress: progress);
+            },
+          );
+
+          // Rename temporary file to final path upon success
+          await tempFile.rename(modelFile.path);
+        } catch (e) {
+          if (await tempFile.exists()) {
+            await tempFile.delete();
+          }
+          rethrow;
+        } finally {
+          state = state.copyWith(
+            isDownloading: false,
+            clearDownloadProgress: true,
+          );
+        }
+      }
+
       // --- 1. Build the deterministic prompt from the local DB ---------
       final prompt = await _buildPrompt(state.testType);
 
@@ -119,19 +180,13 @@ class SlmTestNotifier extends StateNotifier<SlmTestState> {
 
       // --- 3. Run inference, timing latency (time-to-first-token) ------
       //        and total execution time with a single Stopwatch.
-      //
-      // NOTE: This assumes `SLMService` exposes a streaming generation
-      // method of the shape:
-      //   Stream<String> generateStream({required String modelId, required String prompt})
-      // Adjust this call site to match your actual SLMService API if it
-      // differs (e.g. rename to the real method/parameter names).
       final stopwatch = Stopwatch()..start();
       int latencyMs = 0;
       final buffer = StringBuffer();
       bool firstTokenSeen = false;
 
       await for (final chunk in SLMService.generateStream(
-        modelId: model.id,
+        modelPath: modelFile.path,
         prompt: prompt,
       )) {
         if (!firstTokenSeen) {
@@ -176,8 +231,25 @@ class SlmTestNotifier extends StateNotifier<SlmTestState> {
         isRunning: false,
         results: [result, ...state.results],
       );
-    } catch (e) {
+    } catch (e, stack) {
+      print("BENCHMARK ERROR: $e");
+      print("STACKTRACE: $stack");
+
+      // Auto-heal: If benchmark failed (e.g. model corrupt or failed to load), delete the local file
+      try {
+        final docDir = await getApplicationDocumentsDirectory();
+        final modelFile = File('${docDir.path}/${model.filename}');
+        if (await modelFile.exists()) {
+          print("Deleting potentially corrupt model file: ${modelFile.path}");
+          await modelFile.delete();
+        }
+      } catch (err) {
+        print("Failed to auto-heal corrupt file: $err");
+      }
+
       state = state.copyWith(isRunning: false, error: 'Benchmark failed: $e');
+    } finally {
+      await SLMNativeBridge.keepScreenOn(false); // Reset screen timeout
     }
   }
 

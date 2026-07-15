@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
 
@@ -16,13 +17,28 @@ class ModelInfo {
 
 const modelsRegistry = [
   ModelInfo(
-    name: "Gemma 4 E4B",
-    url: "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf?download=true",
+    name: "Qwen 2.5 0.5B (Fastest - 390MB)",
+    url: "https://hf-mirror.com/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true",
+    filename: "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+  ),
+  ModelInfo(
+    name: "Qwen 2.5 1.5B (Recommended - 1.1GB)",
+    url: "https://hf-mirror.com/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true",
+    filename: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+  ),
+  ModelInfo(
+    name: "Llama 3.2 1B (Balanced - 1.2GB)",
+    url: "https://hf-mirror.com/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf?download=true",
+    filename: "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+  ),
+  ModelInfo(
+    name: "Gemma 4 E4B (Large - 2.2GB)",
+    url: "https://hf-mirror.com/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf?download=true",
     filename: "gemma-4-E4B-it-Q4_K_M.gguf",
   ),
   ModelInfo(
-    name: "Phi-4 Mini",
-    url: "https://huggingface.co/unsloth/Phi-4-mini-instruct-GGUF/resolve/main/Phi-4-mini-instruct-Q4_K_M.gguf?download=true",
+    name: "Phi-4 Mini (Large - 2.4GB)",
+    url: "https://hf-mirror.com/matrixportalx/Phi-4-mini-instruct-Q4_K_M-GGUF/resolve/main/Phi-4-mini-instruct-Q4_K_M.gguf?download=true",
     filename: "Phi-4-mini-instruct-Q4_K_M.gguf",
   ),
 ];
@@ -68,7 +84,15 @@ class SLMNativeBridge {
 }
 
 class SLMService {
-  static final _dio = Dio();
+  static final _dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(minutes: 60),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    ),
+  );
   static String? _loadedModelPath;
 
   String interpret({
@@ -87,24 +111,49 @@ class SLMService {
     }
   }
 
-  /// Downloads a GGUF model file from Hugging Face using Dio.
+  /// Downloads a model file using optimized native HttpClient and direct file descriptor writes.
   static Future<void> downloadModel({
     required String url,
     required String savePath,
     required void Function(double progress) onProgress,
   }) async {
+    final client = HttpClient();
+    client.connectionTimeout = const Duration(seconds: 15);
     try {
-      await _dio.download(
-        url,
-        savePath,
-        onReceiveProgress: (received, total) {
-          if (total > 0) {
-            onProgress(received / total);
+      final request = await client.getUrl(Uri.parse(url));
+      request.followRedirects = true;
+      request.headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      
+      final response = await request.close();
+      if (response.statusCode != 200) {
+        throw Exception("Server returned status code: ${response.statusCode}");
+      }
+      
+      final contentLength = response.contentLength;
+      final file = File(savePath);
+      
+      // Open file in write mode using a low-level RandomAccessFile descriptor
+      final raf = await file.open(mode: FileMode.write);
+      
+      int received = 0;
+      double lastProgress = -0.01;
+      
+      await for (final chunk in response) {
+        await raf.writeFrom(chunk);
+        received += chunk.length;
+        if (contentLength > 0) {
+          final progress = received / contentLength;
+          if (progress - lastProgress >= 0.005 || progress >= 0.999) {
+            lastProgress = progress;
+            onProgress(progress);
           }
-        },
-      );
+        }
+      }
+      await raf.close();
     } catch (e) {
       throw Exception("Failed to download model: $e");
+    } finally {
+      client.close();
     }
   }
 

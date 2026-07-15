@@ -1,8 +1,38 @@
 {
     "models": [
         {
+            "id": "qwen25-05b",
+            "name": "Qwen 2.5 0.5B (Fastest - 390MB)",
+            "provider": "Hugging Face",
+            "repo": "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
+            "filename": "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+            "quantization": "Q4_K_M",
+            "runtime": "llama.cpp",
+            "recommendedRamGB": 2
+        },
+        {
+            "id": "qwen25-15b",
+            "name": "Qwen 2.5 1.5B (Recommended - 1.1GB)",
+            "provider": "Hugging Face",
+            "repo": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+            "filename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+            "quantization": "Q4_K_M",
+            "runtime": "llama.cpp",
+            "recommendedRamGB": 4
+        },
+        {
+            "id": "llama32-1b",
+            "name": "Llama 3.2 1B (Balanced - 1.2GB)",
+            "provider": "Hugging Face",
+            "repo": "bartowski/Llama-3.2-1B-Instruct-GGUF",
+            "filename": "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+            "quantization": "Q4_K_M",
+            "runtime": "llama.cpp",
+            "recommendedRamGB": 4
+        },
+        {
             "id": "gemma4",
-            "name": "Gemma 4 E4B",
+            "name": "Gemma 4 E4B (Large - 2.2GB)",
             "provider": "Hugging Face",
             "repo": "ggml-org/gemma-4-E4B-it-GGUF",
             "filename": "gemma-4-E4B-it-Q4_K_M.gguf",
@@ -12,9 +42,9 @@
         },
         {
             "id": "phi4-mini",
-            "name": "Phi-4 Mini",
+            "name": "Phi-4 Mini (Large - 2.4GB)",
             "provider": "Hugging Face",
-            "repo": "unsloth/Phi-4-mini-instruct-GGUF",
+            "repo": "matrixportalx/Phi-4-mini-instruct-Q4_K_M-GGUF",
             "filename": "Phi-4-mini-instruct-Q4_K_M.gguf",
             "quantization": "Q4_K_M",
             "runtime": "llama.cpp",

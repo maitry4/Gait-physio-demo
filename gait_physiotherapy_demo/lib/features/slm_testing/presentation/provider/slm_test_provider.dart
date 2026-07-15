@@ -147,11 +147,16 @@ class SlmTestNotifier extends StateNotifier<SlmTestState> {
             await tempFile.delete();
           }
 
+          double lastProgress = -0.01;
           await SLMService.downloadModel(
             url: registryEntry.url,
             savePath: tempFile.path,
             onProgress: (progress) {
-              state = state.copyWith(downloadProgress: progress);
+              // Only trigger a rebuild if progress moves by 0.5% or reaches completion
+              if (progress - lastProgress >= 0.005 || progress >= 0.999) {
+                lastProgress = progress;
+                state = state.copyWith(downloadProgress: progress);
+              }
             },
           );
 

@@ -41,6 +41,11 @@ class SlmModel {
   }
 }
 
+enum InferenceEngine {
+  llamaCpp,
+  aiCore,
+}
+
 class BenchmarkResult {
   final String phoneModel;
   final String androidVersion;
@@ -56,6 +61,12 @@ class BenchmarkResult {
   final String output;
   final DateTime timestamp;
 
+  // Optional AI Core diagnostics
+  final String? aiCoreStatus;
+  final String? geminiNanoStatus;
+  final String? modelVersion;
+  final int? promptLength;
+
   BenchmarkResult({
     required this.phoneModel,
     required this.androidVersion,
@@ -70,5 +81,9 @@ class BenchmarkResult {
     required this.batteryDrop,
     required this.output,
     required this.timestamp,
+    this.aiCoreStatus,
+    this.geminiNanoStatus,
+    this.modelVersion,
+    this.promptLength,
   });
 }

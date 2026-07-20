@@ -69,12 +69,6 @@ class BenchmarkResultCard extends StatelessWidget {
             _row('Battery After', '${result.batteryAfter}%'),
             _row('Battery Drop', '${result.batteryDrop}%'),
             _row('Timestamp', result.timestamp.toString()),
-            if (result.aiCoreStatus != null) ...[
-              _row('AI Core Status', result.aiCoreStatus!),
-              _row('Gemini Nano Status', result.geminiNanoStatus!),
-              if (result.modelVersion != null) _row('Model Version', result.modelVersion!),
-              if (result.promptLength != null) _row('Prompt Length', '${result.promptLength} chars'),
-            ],
             const SizedBox(height: 8),
             const Text(
               'LLM Output',

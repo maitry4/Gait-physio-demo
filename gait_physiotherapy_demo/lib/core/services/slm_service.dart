@@ -182,7 +182,7 @@ class SLMService {
     final words = responseText.split(' ');
     for (int i = 0; i < words.length; i++) {
       yield words[i] + (i < words.length - 1 ? ' ' : '');
-      await Future.delayed(const Duration(milliseconds: 40));
+      await Future.delayed(const Duration(milliseconds: 10));
     }
   }
 }

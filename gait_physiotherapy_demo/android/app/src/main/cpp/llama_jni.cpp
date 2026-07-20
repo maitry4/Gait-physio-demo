@@ -123,13 +123,14 @@ Java_com_example_gait_1physiotherapy_1demo_MainActivity_nativeGenerate(
     // Initialize sampler chain
     auto sparams = llama_sampler_chain_default_params();
     g_sampler = llama_sampler_chain_init(sparams);
-    llama_sampler_chain_add(g_sampler, llama_sampler_init_temp(0.7f));
-    llama_sampler_chain_add(g_sampler, llama_sampler_init_top_p(0.95f, 1));
     llama_sampler_chain_add(g_sampler, llama_sampler_init_top_k(40));
+    llama_sampler_chain_add(g_sampler, llama_sampler_init_top_p(0.95f, 1));
+    llama_sampler_chain_add(g_sampler, llama_sampler_init_penalties(64, 1.15f, 0.0f, 0.0f));
+    llama_sampler_chain_add(g_sampler, llama_sampler_init_temp(0.7f));
     llama_sampler_chain_add(g_sampler, llama_sampler_init_dist(1234));
     
     std::string result;
-    int max_tokens = 256;
+    int max_tokens = 128;
     int n_pos = prompt_tokens.size();
     
     for (int i = 0; i < max_tokens; i++) {

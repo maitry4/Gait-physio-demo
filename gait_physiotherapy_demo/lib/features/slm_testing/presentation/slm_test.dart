@@ -28,74 +28,40 @@ class SlmTestScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Inference Engine',
+              'Model',
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
             ),
             const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<InferenceEngine>(
-                segments: const [
-                  ButtonSegment(
-                    value: InferenceEngine.llamaCpp,
-                    label: Text('GGUF (llama.cpp)'),
-                    icon: Icon(Icons.psychology),
+            if (state.isLoadingModels)
+              const Center(child: CircularProgressIndicator())
+            else
+              DropdownButtonFormField<SlmModel>(
+                initialValue: state.selectedModel,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  ButtonSegment(
-                    value: InferenceEngine.aiCore,
-                    label: Text('Google AI Core'),
-                    icon: Icon(Icons.android),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
                   ),
-                ],
-                selected: {state.selectedEngine},
-                onSelectionChanged: state.isRunning || state.isDownloading
+                ),
+                items: state.models
+                    .map(
+                      (m) => DropdownMenuItem(value: m, child: Text(m.name)),
+                    )
+                    .toList(),
+                onChanged: state.isRunning || state.isDownloading
                     ? null
-                    : (newSelection) {
-                        notifier.selectEngine(newSelection.first);
+                    : (m) {
+                        if (m != null) notifier.selectModel(m);
                       },
-                style: const ButtonStyle(
-                  visualDensity: VisualDensity.comfortable,
-                ),
               ),
-            ),
-            const SizedBox(height: 20),
 
-            if (state.selectedEngine == InferenceEngine.llamaCpp) ...[
-              const Text(
-                'Model',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-              ),
-              const SizedBox(height: 8),
-              if (state.isLoadingModels)
-                const Center(child: CircularProgressIndicator())
-              else
-                DropdownButtonFormField<SlmModel>(
-                  initialValue: state.selectedModel,
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                  ),
-                  items: state.models
-                      .map(
-                        (m) => DropdownMenuItem(value: m, child: Text(m.name)),
-                      )
-                      .toList(),
-                  onChanged: state.isRunning || state.isDownloading
-                      ? null
-                      : (m) {
-                          if (m != null) notifier.selectModel(m);
-                        },
-                ),
-              const SizedBox(height: 20),
-            ],
+            const SizedBox(height: 20),
 
             const Text(
               'Test Type',
@@ -184,10 +150,7 @@ class SlmTestScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: state.isRunning ||
-                        state.isDownloading ||
-                        (state.selectedEngine == InferenceEngine.llamaCpp &&
-                            state.selectedModel == null)
+                onPressed: state.isRunning || state.isDownloading || state.selectedModel == null
                     ? null
                     : notifier.runBenchmark,
                 child: state.isDownloading
